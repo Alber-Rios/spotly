@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Space, Reservation, SpaceCategory, SpaceEnvironment, DigitalContract, VisitRequest } from '../types.ts';
 import { useApp } from '../context/AppContext.tsx';
-import { formatClp, formatRut, getSpaceRateInfo, getTodayIso } from '../utils/formatters.ts';
+import { formatClp, formatRut, getSpaceAvailableModalities, getSpaceRateInfo, getTodayIso } from '../utils/formatters.ts';
 import { ContractModal } from '../components/ContractModal.tsx';
 import { RentalModalitySelector } from '../components/RentalModalitySelector.tsx';
 import { SpaceAvailabilityViewer } from '../components/SpaceAvailabilityViewer.tsx';
@@ -346,28 +346,10 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     setNewCommune(space.commune);
     setNewAddress(space.address);
 
-    if (mod === 'abierto') {
-      setEnableHourly(Boolean(space.pricePerHour));
-      setEnableDaily(Boolean(space.pricePerDay));
-      setEnableMonthly(Boolean(space.pricePerMonth));
-      if (!space.pricePerHour && !space.pricePerDay && !space.pricePerMonth) {
-        setEnableHourly(true);
-        setEnableDaily(true);
-        setEnableMonthly(true);
-      }
-    } else if (mod === 'por_hora') {
-      setEnableHourly(true);
-      setEnableDaily(false);
-      setEnableMonthly(false);
-    } else if (mod === 'mensual') {
-      setEnableHourly(false);
-      setEnableDaily(false);
-      setEnableMonthly(true);
-    } else {
-      setEnableHourly(false);
-      setEnableDaily(true);
-      setEnableMonthly(false);
-    }
+    const enabledModalities = getSpaceAvailableModalities(space);
+    setEnableHourly(enabledModalities.includes('por_hora'));
+    setEnableDaily(enabledModalities.includes('por_dia'));
+    setEnableMonthly(enabledModalities.includes('mensual'));
 
     setHourlyPrice(space.pricePerHour || (space.pricePerDay ? Math.round(space.pricePerDay / 8) : 45000));
     setHourlyMinHours(space.minBookingHours || 2);
@@ -506,6 +488,11 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
       ? Math.round(Number(hourlyPrice) * 8) 
       : Math.round(Number(monthlyPrice) / 30);
     const monthPrice = enableMonthly ? Number(monthlyPrice) : undefined;
+    const enabledModalities = [
+      ...(enableHourly ? ['por_hora' as const] : []),
+      ...(enableDaily ? ['por_dia' as const] : []),
+      ...(enableMonthly ? ['mensual' as const] : []),
+    ];
     const unit = computedRentalModality === 'por_hora' ? 'hour' : computedRentalModality === 'mensual' ? 'month' : 'day';
     const computedOpeningSchedule =
       operationDays === '24/7'
@@ -519,6 +506,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         category: newCategory,
         spaceEnvironment: newEnvironment,
         rentalModality: computedRentalModality,
+        enabledModalities,
         priceUnit: unit,
         commune: newCommune,
         address: newAddress,
@@ -545,6 +533,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         category: newCategory,
         spaceEnvironment: newEnvironment,
         rentalModality: computedRentalModality,
+        enabledModalities,
         priceUnit: unit,
         commune: newCommune,
         region: 'Región Metropolitana',

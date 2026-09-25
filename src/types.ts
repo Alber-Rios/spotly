@@ -65,6 +65,7 @@ export interface UserProfile {
 }
 
 export type PriceUnit = 'hour' | 'day' | 'month';
+export type RentalModality = 'por_hora' | 'por_dia' | 'mensual';
 
 export interface Space {
   id: string;
@@ -77,6 +78,7 @@ export interface Space {
   category: SpaceCategory;
   spaceEnvironment: SpaceEnvironment; // 'abierto' | 'cerrado'
   rentalModality?: 'por_hora' | 'por_dia' | 'mensual' | 'abierto';
+  enabledModalities?: RentalModality[];
   priceUnit?: PriceUnit; // 'hour' | 'day' | 'month'
   commune: string;
   region: string;

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Space, DigitalContract } from '../types.ts';
 import { useApp } from '../context/AppContext.tsx';
-import { formatClp, formatRut, getTodayIso, getOffsetDateIso } from '../utils/formatters.ts';
+import { formatClp, formatRut, getSpaceAvailableModalities, getTodayIso, getOffsetDateIso } from '../utils/formatters.ts';
 import { BookingModal } from '../components/BookingModal.tsx';
 import { ContractModal } from '../components/ContractModal.tsx';
 import { SpaceLocationMap } from '../components/SpaceLocationMap.tsx';
@@ -67,24 +67,18 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
 
   // Resolver espacio activo
   const space = useMemo(() => {
-    if (propSpace) return propSpace;
     if (id) {
       const found = spaces.find((s) => s.id === id);
       if (found) return found;
     }
+    if (propSpace) return propSpace;
     return spaces[0] || null;
   }, [propSpace, id, spaces]);
 
   // Modalidad activa inicial según la publicación del espacio (por_dia, por_hora, mensual)
   const defaultModality = useMemo<'por_hora' | 'por_dia' | 'mensual'>(() => {
     if (!space) return 'por_dia';
-    if (space.rentalModality === 'por_hora' || space.priceUnit === 'hour') return 'por_hora';
-    if (space.rentalModality === 'mensual' || space.priceUnit === 'month') return 'mensual';
-    if (space.rentalModality === 'por_dia' || space.priceUnit === 'day') return 'por_dia';
-    if (space.rentalModality === 'abierto') {
-      return space.pricePerHour ? 'por_hora' : 'por_dia';
-    }
-    return 'por_dia';
+    return getSpaceAvailableModalities(space)[0] || 'por_dia';
   }, [space]);
 
   const [activeModality, setActiveModality] = useState<'por_hora' | 'por_dia' | 'mensual'>(defaultModality);

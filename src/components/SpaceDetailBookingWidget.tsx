@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Space, VisitRequest } from '../types.ts';
-import { formatClp, getTodayIso } from '../utils/formatters.ts';
+import { formatClp, getSpaceAvailableModalities, getTodayIso } from '../utils/formatters.ts';
 import { useApp } from '../context/AppContext.tsx';
 import {
   Calendar as CalendarIcon,
@@ -90,21 +90,8 @@ export const SpaceDetailBookingWidget: React.FC<SpaceDetailBookingWidgetProps> =
 
   // Determinar modalidades disponibles según la publicación del espacio
   const availableModalities = useMemo<('por_hora' | 'por_dia' | 'mensual')[]>(() => {
-    if (space.rentalModality === 'por_hora') return ['por_hora'];
-    if (space.rentalModality === 'por_dia') return ['por_dia'];
-    if (space.rentalModality === 'mensual') return ['mensual'];
-    if (space.rentalModality === 'abierto') {
-      const list: ('por_hora' | 'por_dia' | 'mensual')[] = [];
-      if (space.pricePerHour) list.push('por_hora');
-      if (space.pricePerDay) list.push('por_dia');
-      if (space.pricePerMonth) list.push('mensual');
-      return list.length > 0 ? list : ['por_dia'];
-    }
-    // Si no tiene rentalModality explícito, deducir por priceUnit
-    if (space.priceUnit === 'hour') return ['por_hora'];
-    if (space.priceUnit === 'month') return ['mensual'];
-    return ['por_dia'];
-  }, [space.rentalModality, space.priceUnit, space.pricePerHour, space.pricePerDay, space.pricePerMonth]);
+    return getSpaceAvailableModalities(space);
+  }, [space]);
 
   // Si la modalidad activa no está permitida en esta publicación, ajustarla automáticamente
   useEffect(() => {

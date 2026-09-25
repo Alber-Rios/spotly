@@ -1,3 +1,5 @@
+import { RentalModality, Space } from '../types.ts';
+
 /**
  * Utilidades para formateo de moneda CLP y validación de RUT chileno (Módulo 11)
  */
@@ -68,6 +70,28 @@ export function validateRut(rut: string): boolean {
   return dv === expectedDv;
 }
 
+export function getSpaceAvailableModalities(space: Pick<Space, 'rentalModality' | 'enabledModalities' | 'priceUnit' | 'pricePerHour' | 'pricePerDay' | 'pricePerMonth'>): RentalModality[] {
+  if (space.enabledModalities?.length) {
+    return space.enabledModalities;
+  }
+
+  if (space.rentalModality && space.rentalModality !== 'abierto') {
+    return [space.rentalModality];
+  }
+
+  if (space.rentalModality === 'abierto') {
+    const available: RentalModality[] = [];
+    if (space.pricePerHour && space.pricePerHour > 0) available.push('por_hora');
+    if (space.pricePerDay > 0) available.push('por_dia');
+    if (space.pricePerMonth && space.pricePerMonth > 0) available.push('mensual');
+    if (available.length) return available;
+  }
+
+  if (space.priceUnit === 'hour') return ['por_hora'];
+  if (space.priceUnit === 'month') return ['mensual'];
+  return ['por_dia'];
+}
+
 export function formatDateCl(dateStr: string): string {
   try {
     const d = new Date(dateStr);
@@ -82,6 +106,7 @@ export function formatDateCl(dateStr: string): string {
 }
 
 export function getSpaceRateInfo(space: {
+  enabledModalities?: RentalModality[];
   priceUnit?: 'hour' | 'day' | 'month';
   rentalModality?: 'por_hora' | 'por_dia' | 'mensual' | 'abierto';
   pricePerHour?: number;
@@ -94,51 +119,37 @@ export function getSpaceRateInfo(space: {
   formatted: string;
   isFlexible?: boolean;
 } {
-  if (space.rentalModality === 'abierto') {
-    if (space.pricePerHour) {
-      return {
-        amount: space.pricePerHour,
-        unit: 'flexible',
-        unitLabel: '/ hr • Flexible',
-        formatted: `${formatClp(space.pricePerHour)} / hr`,
-        isFlexible: true,
-      };
-    }
-    return {
-      amount: space.pricePerDay,
-      unit: 'flexible',
-      unitLabel: '/ día • Flexible',
-      formatted: `${formatClp(space.pricePerDay)} / día`,
-      isFlexible: true,
-    };
-  }
+  const availableModalities = getSpaceAvailableModalities(space);
+  const selectedModality = availableModalities[0];
+  const isFlexible = availableModalities.length > 1;
 
-  const modality = space.priceUnit || (space.rentalModality === 'por_hora' ? 'hour' : space.rentalModality === 'mensual' ? 'month' : 'day');
-
-  if (modality === 'hour' && space.pricePerHour) {
+  if (selectedModality === 'por_hora' && space.pricePerHour) {
     return {
       amount: space.pricePerHour,
-      unit: 'hora',
-      unitLabel: '/ hr',
+      unit: isFlexible ? 'flexible' : 'hora',
+      unitLabel: isFlexible ? '/ hr • Flexible' : '/ hr',
       formatted: `${formatClp(space.pricePerHour)} / hr`,
+      isFlexible,
     };
   }
 
-  if (modality === 'month' && (space.pricePerMonth || space.pricePerDay)) {
+  if (selectedModality === 'mensual' && (space.pricePerMonth || space.pricePerDay)) {
     const amount = space.pricePerMonth || space.pricePerDay;
     return {
       amount,
-      unit: 'mes',
-      unitLabel: '/ mes',
+      unit: isFlexible ? 'flexible' : 'mes',
+      unitLabel: isFlexible ? '/ mes • Flexible' : '/ mes',
       formatted: `${formatClp(amount)} / mes`,
+      isFlexible,
     };
   }
 
   return {
     amount: space.pricePerDay,
-    unit: 'día',
-    unitLabel: '/ día',
+    unit: isFlexible ? 'flexible' : 'día',
+    unitLabel: isFlexible ? '/ día • Flexible' : '/ día',
     formatted: `${formatClp(space.pricePerDay)} / día`,
+    isFlexible,
   };
 }
 

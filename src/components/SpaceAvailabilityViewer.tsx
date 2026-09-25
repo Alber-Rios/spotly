@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -28,7 +28,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { Space, Reservation } from '../types.ts';
-import { formatClp, formatRut, getTodayIso, formatDateCl } from '../utils/formatters.ts';
+import { formatClp, formatRut, getSpaceAvailableModalities, getTodayIso, formatDateCl } from '../utils/formatters.ts';
 import { useApp } from '../context/AppContext.tsx';
 
 interface SpaceAvailabilityViewerProps {
@@ -76,47 +76,30 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
 }) => {
   const { reservations } = useApp();
   const todayIso = useMemo(() => getTodayIso(), []);
+  const availableModalities = useMemo(() => getSpaceAvailableModalities(space), [space]);
 
   // Modalidades soportadas por el espacio
-  const supportsHourly = useMemo(() => {
-    return (
-      (space.pricePerHour !== undefined && space.pricePerHour > 0) ||
-      space.rentalModality === 'por_hora' ||
-      space.rentalModality === 'abierto'
-    );
-  }, [space]);
-
-  const supportsDaily = useMemo(() => {
-    return (
-      (space.pricePerDay !== undefined && space.pricePerDay > 0) ||
-      space.rentalModality === 'por_dia' ||
-      space.rentalModality === 'abierto'
-    );
-  }, [space]);
-
-  const supportsMonthly = useMemo(() => {
-    return (
-      (space.pricePerMonth !== undefined && space.pricePerMonth > 0) ||
-      space.rentalModality === 'mensual' ||
-      space.rentalModality === 'abierto'
-    );
-  }, [space]);
+  const supportsHourly = availableModalities.includes('por_hora');
+  const supportsDaily = availableModalities.includes('por_dia');
+  const supportsMonthly = availableModalities.includes('mensual');
 
   // Modalidad interna activa
   const [internalModality, setInternalModality] = useState<'por_hora' | 'por_dia' | 'mensual'>(() => {
     if (controlledModality) return controlledModality;
-    if (space.rentalModality === 'por_hora') return 'por_hora';
-    if (space.rentalModality === 'por_dia') return 'por_dia';
-    if (space.rentalModality === 'mensual') return 'mensual';
-    if (supportsHourly) return 'por_hora';
-    if (supportsDaily) return 'por_dia';
-    if (supportsMonthly) return 'mensual';
-    return 'por_dia';
+    return availableModalities[0] || 'por_dia';
   });
 
   const activeModality = controlledModality || internalModality;
 
+  useEffect(() => {
+    if (availableModalities.includes(activeModality)) return;
+    const nextModality = availableModalities[0] || 'por_dia';
+    setInternalModality(nextModality);
+    onModalityChange?.(nextModality);
+  }, [availableModalities, activeModality, onModalityChange]);
+
   const handleModalityToggle = (newMod: 'por_hora' | 'por_dia' | 'mensual') => {
+    if (!availableModalities.includes(newMod)) return;
     setInternalModality(newMod);
     if (onModalityChange) {
       onModalityChange(newMod);
@@ -558,7 +541,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
           </div>
 
           {/* SELECTOR DE MODALIDAD TIPO SWITCHER (Visible cuando el espacio es flexible o multi-modalidad) */}
-          {(space.rentalModality === 'abierto' || (supportsHourly && supportsDaily) || (supportsDaily && supportsMonthly)) && (
+          {availableModalities.length > 1 && (
             <div className="flex flex-wrap items-center gap-1.5 bg-slate-800/90 p-1.5 rounded-2xl border border-slate-700 self-start xl:self-center shrink-0">
               {supportsHourly && (
                 <button
