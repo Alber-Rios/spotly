@@ -7,7 +7,6 @@ import { BookingModal } from '../components/BookingModal.tsx';
 import { ContractModal } from '../components/ContractModal.tsx';
 import { SpaceLocationMap } from '../components/SpaceLocationMap.tsx';
 import { SpaceDetailBookingWidget } from '../components/SpaceDetailBookingWidget.tsx';
-import { SpaceAvailabilityViewer } from '../components/SpaceAvailabilityViewer.tsx';
 import {
   MapPin,
   Users,
@@ -19,7 +18,6 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Share2,
@@ -28,7 +26,6 @@ import {
   CreditCard,
   Building,
   ArrowLeft,
-  ArrowRight,
   Lock,
   Phone,
   Mail,
@@ -148,13 +145,6 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
     }
   };
 
-  const scrollToCalendar = () => {
-    const el = document.getElementById('calendario-disponibilidad');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   const handleStartBooking = () => {
     if (!currentUser) {
       if (onOpenAuth) {
@@ -201,14 +191,6 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
       {/* 1. TOP BREADCRUMB & TAGS (IDÉNTICO A LA REFERENCIA) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => onNavigate('home')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>Volver al Catálogo</span>
-          </button>
-
           <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase bg-slate-900 text-white tracking-wider shadow-2xs">
             {CATEGORY_NAMES[space.category] || space.category.toUpperCase()}
           </span>
@@ -258,46 +240,6 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
           <span className="font-semibold text-slate-800">{space.address}</span>
           <span className="text-slate-500 hidden sm:inline">• {space.commune}, {space.region}</span>
         </p>
-      </div>
-
-      {/* BARRA DE ACCESO RÁPIDO AL CALENDARIO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-3.5 sm:p-4 rounded-2xl text-white shadow-xs border border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 shrink-0">
-            <CalendarIcon className="w-4 h-4" />
-          </span>
-          <div>
-            <div className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2">
-              <span>Disponibilidad Horaria en Vivo</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                Sincronizado
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-300">
-              Consulta en tiempo real qué horas están pedidas y cuáles están disponibles para reservar.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={scrollToCalendar}
-            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer"
-          >
-            <Clock className="w-3.5 h-3.5 text-rose-400" />
-            <span>Ver Calendario & Horas</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleStartBooking}
-            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <span>Solicitud de Reserva</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
 
       {/* 3. ESTRUCTURA PRINCIPAL EN DOS COLUMNAS */}
@@ -525,28 +467,6 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
               </div>
             </div>
           )}
-
-          {/* F. CALENDARIO Y DISPONIBILIDAD HORARIA EN TIEMPO REAL */}
-          <SpaceAvailabilityViewer
-            space={space}
-            modality={activeModality}
-            onModalityChange={setActiveModality}
-            startDate={startDate}
-            endDate={endDate}
-            onSelectDateRange={(start, end) => {
-              setStartDate(start);
-              setEndDate(end);
-            }}
-            selectedMonth={selectedMonth}
-            onSelectMonth={setSelectedMonth}
-            selectedHourStart={hourStart}
-            selectedHourEnd={hourEnd}
-            onSelectHours={(start, end) => {
-              setHourStart(start);
-              setHourEnd(end);
-            }}
-            onStartBooking={handleStartBooking}
-          />
 
           {/* G. REGLAS Y CONDICIONES DEL RECINTO */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
