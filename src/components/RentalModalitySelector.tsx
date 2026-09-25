@@ -2,13 +2,21 @@ import React from 'react';
 import { Clock, Sun, Building2, Check, Sparkles } from 'lucide-react';
 import { formatClp } from '../utils/formatters.ts';
 
+const HOUR_OPTIONS = [
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
+  '22:00', '22:30', '23:00', '23:30', '24:00',
+];
+
 export interface RentalModalitySelectorProps {
   enableHourly: boolean;
   onEnableHourlyChange: (val: boolean) => void;
   hourlyPrice: number | '';
   onHourlyPriceChange: (val: number | '') => void;
-  hourlyMinHours: number;
-  onHourlyMinHoursChange: (val: number) => void;
+  hourlyMinHours: number | '';
+  onHourlyMinHoursChange: (val: number | '') => void;
   hourlyInstantBooking?: boolean;
   onHourlyInstantBookingChange?: (val: boolean) => void;
 
@@ -29,6 +37,12 @@ export interface RentalModalitySelectorProps {
   // Callback when computed modality changes ('abierto' | 'por_hora' | 'por_dia' | 'mensual')
   computedModality: 'abierto' | 'por_hora' | 'por_dia' | 'mensual';
 }
+
+const sanitizePositiveInteger = (rawValue: string): number | '' => {
+  const digitsOnly = rawValue.replace(/\D/g, '').replace(/^0+/, '');
+  if (digitsOnly === '') return '';
+  return parseInt(digitsOnly, 10);
+};
 
 export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
   enableHourly,
@@ -56,6 +70,23 @@ export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
 
   computedModality,
 }) => {
+  // Parsear ventana horaria "09:00 - 19:00"
+  const parsedWindow = React.useMemo(() => {
+    const match = dailyOpeningHours.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    return {
+      start: match ? match[1] : '09:00',
+      end: match ? match[2] : '19:00',
+    };
+  }, [dailyOpeningHours]);
+
+  const handleWindowStartChange = (newStart: string) => {
+    onDailyOpeningHoursChange(`${newStart} - ${parsedWindow.end}`);
+  };
+
+  const handleWindowEndChange = (newEnd: string) => {
+    onDailyOpeningHoursChange(`${parsedWindow.start} - ${newEnd}`);
+  };
+
   // Asegurar que al menos una modalidad esté activa
   const handleToggleHourly = () => {
     if (enableHourly && !enableDaily && !enableMonthly) {
@@ -188,50 +219,69 @@ export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
               {/* Precio base */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Precio base
+                  Precio por hora (CLP)
                 </label>
                 <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
                   <span className="text-xs font-bold text-slate-900">$</span>
                   <input
-                    type="number"
-                    min="1"
-                    step="1000"
-                    placeholder="45000"
-                    value={hourlyPrice}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ej: 45000"
+                    value={hourlyPrice === 0 ? '' : hourlyPrice}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '') onHourlyPriceChange('');
-                      else {
-                        const num = Number(val);
-                        if (num >= 0) onHourlyPriceChange(num);
-                      }
+                      onHourlyPriceChange(sanitizePositiveInteger(e.target.value));
                     }}
                     className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-hidden"
+                    required
                   />
                   <span className="text-xs text-slate-400 font-medium shrink-0">/ hr</span>
                 </div>
               </div>
 
-              {/* Mínimo de reserva con stepper */}
+              {/* Mínimo de reserva en horas (entero > 0) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Mínimo de reserva
+                  Mínimo de horas (entero &gt; 0)
                 </label>
-                <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-2 flex items-center justify-between">
+                <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
                   <button
                     type="button"
-                    onClick={() => onHourlyMinHoursChange(Math.max(1, hourlyMinHours - 1))}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
+                    onClick={() => {
+                      const current = Number(hourlyMinHours) || 1;
+                      onHourlyMinHoursChange(Math.max(1, current - 1));
+                    }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer shrink-0"
                   >
                     —
                   </button>
-                  <span className="text-xs font-bold text-slate-800">
-                    {hourlyMinHours} {hourlyMinHours === 1 ? 'hr' : 'hrs'}
-                  </span>
+                  <div className="flex items-center justify-center gap-1 flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Ej: 2"
+                      value={hourlyMinHours === 0 ? '' : hourlyMinHours}
+                      onChange={(e) => {
+                        const parsed = sanitizePositiveInteger(e.target.value);
+                        if (parsed === '') {
+                          onHourlyMinHoursChange('');
+                        } else {
+                          onHourlyMinHoursChange(Math.min(24, parsed));
+                        }
+                      }}
+                      className="w-12 text-center bg-transparent text-xs font-bold text-slate-900 focus:outline-hidden"
+                      required
+                    />
+                    <span className="text-xs font-semibold text-slate-500">
+                      {Number(hourlyMinHours) === 1 ? 'hr' : 'hrs'}
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => onHourlyMinHoursChange(Math.min(24, hourlyMinHours + 1))}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
+                    onClick={() => {
+                      const current = Number(hourlyMinHours) || 1;
+                      onHourlyMinHoursChange(Math.min(24, current + 1));
+                    }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer shrink-0"
                   >
                     +
                   </button>
@@ -296,43 +346,53 @@ export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
             {/* Precio por día */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Precio por día
+                Precio por día (CLP)
               </label>
               <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
                 <span className="text-xs font-bold text-slate-900">$</span>
                 <input
-                  type="number"
-                  min="1"
-                  step="5000"
-                  placeholder="280000"
-                  value={dailyPrice}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej: 280000"
+                  value={dailyPrice === 0 ? '' : dailyPrice}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') onDailyPriceChange('');
-                    else {
-                      const num = Number(val);
-                      if (num >= 0) onDailyPriceChange(num);
-                    }
+                    onDailyPriceChange(sanitizePositiveInteger(e.target.value));
                   }}
                   className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-hidden"
+                  required
                 />
                 <span className="text-xs text-slate-400 font-medium shrink-0">/ día</span>
               </div>
             </div>
 
-            {/* Ventana horaria */}
+            {/* Ventana horaria con menús desplegables */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Ventana horaria
+                Ventana horaria (Apertura - Cierre)
               </label>
-              <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-2 flex items-center justify-center">
-                <input
-                  type="text"
-                  placeholder="09:00 - 19:00"
-                  value={dailyOpeningHours}
-                  onChange={(e) => onDailyOpeningHoursChange(e.target.value)}
-                  className="w-full text-center text-xs font-bold text-slate-800 bg-transparent focus:outline-hidden"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={parsedWindow.start}
+                  onChange={(e) => handleWindowStartChange(e.target.value)}
+                  className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-2.5 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1e293b] focus:bg-white focus:outline-hidden cursor-pointer"
+                >
+                  {HOUR_OPTIONS.map((h) => (
+                    <option key={`start-${h}`} value={h}>
+                      Desde {h}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={parsedWindow.end}
+                  onChange={(e) => handleWindowEndChange(e.target.value)}
+                  className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-2.5 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1e293b] focus:bg-white focus:outline-hidden cursor-pointer"
+                >
+                  {HOUR_OPTIONS.map((h) => (
+                    <option key={`end-${h}`} value={h}>
+                      Hasta {h}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -393,37 +453,32 @@ export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
             {/* Tarifa mensual */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Tarifa mensual
+                Tarifa mensual (CLP)
               </label>
               <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
                 <span className="text-xs font-bold text-slate-900">$</span>
                 <input
-                  type="number"
-                  min="1"
-                  step="50000"
-                  placeholder="3800000"
-                  value={monthlyPrice}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej: 3800000"
+                  value={monthlyPrice === 0 ? '' : monthlyPrice}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') onMonthlyPriceChange('');
-                    else {
-                      const num = Number(val);
-                      if (num >= 0) onMonthlyPriceChange(num);
-                    }
+                    onMonthlyPriceChange(sanitizePositiveInteger(e.target.value));
                   }}
                   className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-hidden"
+                  required
                 />
                 <span className="text-xs text-slate-400 font-medium shrink-0">/ m</span>
               </div>
             </div>
 
-            {/* Fianza / Depósito */}
+            {/* Garantía / Depósito */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-slate-600">
-                  Fianza / Depósito
+                  Garantía / Depósito (CLP)
                 </label>
-                {monthlyPrice && (
+                {monthlyPrice && Number(monthlyPrice) > 0 && (
                   <button
                     type="button"
                     onClick={() => onSecurityDepositChange(Number(monthlyPrice))}
@@ -433,30 +488,22 @@ export const RentalModalitySelector: React.FC<RentalModalitySelectorProps> = ({
                   </button>
                 )}
               </div>
-              <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-2 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
+              <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-[#1e293b] focus-within:bg-white transition">
                 <span className="text-xs font-bold text-slate-900">$</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="50000"
-                  placeholder={monthlyPrice ? String(monthlyPrice) : '0'}
-                  value={securityDeposit}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej: 500000"
+                  value={securityDeposit === 0 ? '' : securityDeposit}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') onSecurityDepositChange('');
-                    else {
-                      const num = Number(val);
-                      if (num >= 0) onSecurityDepositChange(num);
-                    }
+                    onSecurityDepositChange(sanitizePositiveInteger(e.target.value));
                   }}
-                  className="w-full text-center text-xs font-bold text-slate-800 bg-transparent focus:outline-hidden"
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-hidden"
                 />
                 <span className="text-[11px] text-slate-400 font-medium shrink-0">
                   {monthlyPrice && Number(securityDeposit) === Number(monthlyPrice)
                     ? '(1 Mes)'
-                    : Number(securityDeposit) === 0
-                    ? '(Sin fianza)'
-                    : ''}
+                    : '/ garantía'}
                 </span>
               </div>
             </div>

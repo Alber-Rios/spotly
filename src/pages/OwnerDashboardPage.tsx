@@ -86,6 +86,28 @@ const POPULAR_RULES = [
   'Capacidad máxima estrictamente respetada',
 ];
 
+const AVAILABILITY_DAY_OPTIONS = [
+  { value: 'Lun-Vie', label: 'Lunes a Viernes (Lun-Vie)' },
+  { value: 'Lun-Sáb', label: 'Lunes a Sábado (Lun-Sáb)' },
+  { value: 'Lun-Dom', label: 'Todos los días (Lun-Dom)' },
+  { value: 'Sáb-Dom', label: 'Fines de Semana (Sáb-Dom)' },
+  { value: '24/7', label: '24 Horas / 7 Días (Continuo)' },
+];
+
+const OPERATION_HOUR_OPTIONS = [
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
+  '22:00', '22:30', '23:00', '23:30', '24:00',
+];
+
+const parsePositiveIntInput = (raw: string): number | '' => {
+  const digits = raw.replace(/\D/g, '').replace(/^0+/, '');
+  if (digits === '') return '';
+  return parseInt(digits, 10);
+};
+
 // Presets removidos por solicitud del usuario
 
 export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOwnerUpgrade, onOpenAuth }) => {
@@ -113,7 +135,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
   const [pendingFilter, setPendingFilter] = useState<'all' | 'selected'>('all');
   const [bookingListStatusFilter, setBookingListStatusFilter] = useState<'pending_valid' | 'all' | 'confirmed' | 'past'>('pending_valid');
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
-  const [maintenanceDate, setMaintenanceDate] = useState('2026-09-24');
+  const [maintenanceDate, setMaintenanceDate] = useState(() => getTodayIso());
   const [maintenanceReason, setMaintenanceReason] = useState('Sanitización y Mantenimiento Iluminación DMX');
   const [maintenanceBlocks, setMaintenanceBlocks] = useState<{ id: string; spaceId: string; date: string; reason: string }[]>([
     { id: 'm-1', spaceId: 'spc-002', date: '2026-09-24', reason: 'Sanitización y Mantenimiento Iluminación DMX' }
@@ -131,16 +153,16 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
   
   // Estados de modalidades y tarifas tipo interruptor
   const [enableHourly, setEnableHourly] = useState(true);
-  const [hourlyPrice, setHourlyPrice] = useState<number | ''>(45000);
-  const [hourlyMinHours, setHourlyMinHours] = useState(2);
+  const [hourlyPrice, setHourlyPrice] = useState<number | ''>('');
+  const [hourlyMinHours, setHourlyMinHours] = useState<number | ''>('');
   const [hourlyInstantBooking, setHourlyInstantBooking] = useState(true);
 
   const [enableDaily, setEnableDaily] = useState(true);
-  const [dailyPrice, setDailyPrice] = useState<number | ''>(280000);
-  const [dailyOpeningHours, setDailyOpeningHours] = useState('09:00 - 19:00');
+  const [dailyPrice, setDailyPrice] = useState<number | ''>('');
+  const [dailyOpeningHours, setDailyOpeningHours] = useState('08:30 - 20:30');
 
   const [enableMonthly, setEnableMonthly] = useState(true);
-  const [monthlyPrice, setMonthlyPrice] = useState<number | ''>(3800000);
+  const [monthlyPrice, setMonthlyPrice] = useState<number | ''>('');
 
   const computedRentalModality = useMemo<'abierto' | 'por_hora' | 'por_dia' | 'mensual'>(() => {
     const activeCount = (enableHourly ? 1 : 0) + (enableDaily ? 1 : 0) + (enableMonthly ? 1 : 0);
@@ -152,12 +174,15 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
 
   const [newCommune, setNewCommune] = useState('Las Condes');
   const [newAddress, setNewAddress] = useState('');
-  const [newPrice, setNewPrice] = useState<number | ''>(0);
-  const [newCapacity, setNewCapacity] = useState<number | ''>(0);
-  const [newSurfaceM2, setNewSurfaceM2] = useState<number | ''>(0);
-  const [newSecurityDeposit, setNewSecurityDeposit] = useState<number | ''>(0);
+  const [newPrice, setNewPrice] = useState<number | ''>('');
+  const [newCapacity, setNewCapacity] = useState<number | ''>('');
+  const [newSurfaceM2, setNewSurfaceM2] = useState<number | ''>('');
+  const [newSecurityDeposit, setNewSecurityDeposit] = useState<number | ''>('');
   const [newMinBookingDays, setNewMinBookingDays] = useState<number | ''>(1);
-  const [newOpeningHours, setNewOpeningHours] = useState('');
+  const [operationDays, setOperationDays] = useState('Lun-Vie');
+  const [operationStartHour, setOperationStartHour] = useState('08:30');
+  const [operationEndHour, setOperationEndHour] = useState('20:30');
+  const [newOpeningHours, setNewOpeningHours] = useState('Lun-Vie 08:30-20:30');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedRules, setSelectedRules] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<string[]>([]);
@@ -349,21 +374,31 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     setHourlyInstantBooking(space.instantBooking ?? true);
 
     setDailyPrice(space.pricePerDay || 280000);
-    setDailyOpeningHours(space.openingHours || '09:00 - 19:00');
+    setDailyOpeningHours(space.openingHours || '08:30 - 20:30');
 
     setMonthlyPrice(space.pricePerMonth || (space.pricePerDay ? space.pricePerDay * 22 : 3800000));
-    setNewSecurityDeposit(space.securityDeposit ?? 0);
+    setNewSecurityDeposit(space.securityDeposit && space.securityDeposit > 0 ? space.securityDeposit : '');
 
     const effectivePrice = mod === 'por_hora' 
       ? (space.pricePerHour || Math.round(space.pricePerDay / 8))
       : mod === 'mensual'
       ? (space.pricePerMonth || space.pricePerDay)
       : space.pricePerDay;
-    setNewPrice(effectivePrice);
-    setNewCapacity(space.capacity);
-    setNewSurfaceM2(space.surfaceM2);
+    setNewPrice(effectivePrice && effectivePrice > 0 ? effectivePrice : '');
+    setNewCapacity(space.capacity && space.capacity > 0 ? space.capacity : '');
+    setNewSurfaceM2(space.surfaceM2 && space.surfaceM2 > 0 ? space.surfaceM2 : '');
     setNewMinBookingDays(space.minBookingDays || 1);
-    setNewOpeningHours(space.openingHours || '');
+
+    const rawHours = space.openingHours || 'Lun-Vie 08:30-20:30';
+    const timeMatch = rawHours.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    const startH = timeMatch ? timeMatch[1] : '08:30';
+    const endH = timeMatch ? timeMatch[2] : '20:30';
+    const detectedDay = AVAILABILITY_DAY_OPTIONS.find((d) => rawHours.includes(d.value))?.value || 'Lun-Vie';
+    setOperationDays(detectedDay);
+    setOperationStartHour(startH);
+    setOperationEndHour(endH);
+    setNewOpeningHours(detectedDay === '24/7' ? 'Lun-Dom 00:00-24:00 (24/7)' : `${detectedDay} ${startH}-${endH}`);
+
     setSelectedAmenities(space.amenities || []);
     setSelectedRules(space.rules || []);
     setNewImages(space.images || []);
@@ -378,18 +413,21 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     setEnableHourly(true);
     setEnableDaily(true);
     setEnableMonthly(true);
-    setHourlyPrice(45000);
-    setHourlyMinHours(2);
+    setHourlyPrice('');
+    setHourlyMinHours('');
     setHourlyInstantBooking(true);
-    setDailyPrice(280000);
-    setDailyOpeningHours('09:00 - 19:00');
-    setMonthlyPrice(3800000);
-    setNewSecurityDeposit(0);
-    setNewPrice(0);
-    setNewCapacity(0);
-    setNewSurfaceM2(0);
+    setDailyPrice('');
+    setDailyOpeningHours('08:30 - 20:30');
+    setMonthlyPrice('');
+    setNewSecurityDeposit('');
+    setNewPrice('');
+    setNewCapacity('');
+    setNewSurfaceM2('');
     setNewMinBookingDays(1);
-    setNewOpeningHours('');
+    setOperationDays('Lun-Vie');
+    setOperationStartHour('08:30');
+    setOperationEndHour('20:30');
+    setNewOpeningHours('Lun-Vie 08:30-20:30');
     setSelectedAmenities([]);
     setSelectedRules([]);
     setNewImages([]);
@@ -420,19 +458,59 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
       return;
     }
 
+    if (!newCapacity || Number(newCapacity) <= 0 || !Number.isInteger(Number(newCapacity))) {
+      alert('La Capacidad Máxima debe ser un número entero mayor a 0.');
+      return;
+    }
+
+    if (!newSurfaceM2 || Number(newSurfaceM2) <= 0 || !Number.isInteger(Number(newSurfaceM2))) {
+      alert('La Superficie Total (m²) debe ser un número entero mayor a 0.');
+      return;
+    }
+
+    if (!newSecurityDeposit || Number(newSecurityDeposit) <= 0 || !Number.isInteger(Number(newSecurityDeposit))) {
+      alert('El monto de Garantía debe ser un número entero mayor a 0.');
+      return;
+    }
+
+    if (enableHourly) {
+      if (!hourlyPrice || Number(hourlyPrice) <= 0 || !Number.isInteger(Number(hourlyPrice))) {
+        alert('El precio por hora ($) debe ser un número entero mayor a 0.');
+        return;
+      }
+      if (!hourlyMinHours || Number(hourlyMinHours) <= 0 || !Number.isInteger(Number(hourlyMinHours))) {
+        alert('El mínimo de horas (hr) debe ser un número entero mayor a 0.');
+        return;
+      }
+    }
+
+    if (enableDaily && (!dailyPrice || Number(dailyPrice) <= 0 || !Number.isInteger(Number(dailyPrice)))) {
+      alert('El precio por día ($) debe ser un número entero mayor a 0.');
+      return;
+    }
+
+    if (enableMonthly && (!monthlyPrice || Number(monthlyPrice) <= 0 || !Number.isInteger(Number(monthlyPrice)))) {
+      alert('La tarifa mensual ($) debe ser un número entero mayor a 0.');
+      return;
+    }
+
     if (newImages.length === 0) {
       alert('Por favor añade al menos una fotografía del espacio.');
       return;
     }
 
-    const hourPrice = enableHourly ? (Number(hourlyPrice) || 35000) : undefined;
+    const hourPrice = enableHourly ? Number(hourlyPrice) : undefined;
     const dayPrice = enableDaily 
-      ? (Number(dailyPrice) || 280000) 
+      ? Number(dailyPrice) 
       : enableHourly 
       ? Math.round(Number(hourlyPrice) * 8) 
-      : Math.round(Number(monthlyPrice) / 30) || 280000;
-    const monthPrice = enableMonthly ? (Number(monthlyPrice) || 3800000) : undefined;
+      : Math.round(Number(monthlyPrice) / 30);
+    const monthPrice = enableMonthly ? Number(monthlyPrice) : undefined;
     const unit = computedRentalModality === 'por_hora' ? 'hour' : computedRentalModality === 'mensual' ? 'month' : 'day';
+    const computedOpeningSchedule =
+      operationDays === '24/7'
+        ? 'Lun-Dom 00:00-24:00 (24/7)'
+        : `${operationDays} ${operationStartHour}-${operationEndHour}`;
 
     if (editingSpace) {
       updateSpace(editingSpace.id, {
@@ -451,11 +529,11 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         surfaceM2: Number(newSurfaceM2),
         amenities: selectedAmenities,
         rules: selectedRules,
-        openingHours: dailyOpeningHours || newOpeningHours || '09:00 - 19:00',
+        openingHours: computedOpeningSchedule,
         securityDeposit: Number(newSecurityDeposit),
         images: newImages,
-        minBookingDays: Number(newMinBookingDays),
-        minBookingHours: hourlyMinHours,
+        minBookingDays: Number(newMinBookingDays) || 1,
+        minBookingHours: Number(hourlyMinHours) || 1,
         instantBooking: hourlyInstantBooking,
       });
 
@@ -478,13 +556,13 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         surfaceM2: Number(newSurfaceM2),
         amenities: selectedAmenities,
         rules: selectedRules,
-        openingHours: dailyOpeningHours || newOpeningHours || '09:00 - 19:00',
+        openingHours: computedOpeningSchedule,
         securityDeposit: Number(newSecurityDeposit),
         images: newImages,
         isVerified: true,
         status: 'pending_approval',
-        minBookingDays: Number(newMinBookingDays),
-        minBookingHours: hourlyMinHours,
+        minBookingDays: Number(newMinBookingDays) || 1,
+        minBookingHours: Number(hourlyMinHours) || 1,
         instantBooking: hourlyInstantBooking,
       });
 
@@ -636,6 +714,10 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
       alert('Por favor selecciona una fecha');
       return;
     }
+    if (maintenanceDate < todayIso) {
+      alert(`No puedes bloquear ni modificar fechas anteriores a hoy (${todayIso}). El historial hacia atrás es exclusivamente de solo lectura.`);
+      return;
+    }
     const newBlock = {
       id: `m-${Date.now()}`,
       spaceId: selectedSpace.id,
@@ -647,31 +729,36 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
   };
 
   const handleRemoveMaintenanceBlock = (id: string) => {
+    const target = maintenanceBlocks.find((m) => m.id === id);
+    if (target && target.date < todayIso) {
+      alert(`No puedes modificar ni eliminar bloqueos de fechas pasadas (${target.date}). El historial es de solo lectura.`);
+      return;
+    }
     setMaintenanceBlocks((prev) => prev.filter((m) => m.id !== id));
   };
 
   return (
     <div className="space-y-8 pb-16">
       {/* Encabezado del Panel de Propietario */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 ${
+            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 whitespace-nowrap ${
               currentUser.verificationStatus === 'verified'
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                 : 'bg-amber-100 text-amber-800'
             }`}>
-              <Building className="w-3.5 h-3.5" />
+              <Building className="w-3.5 h-3.5 shrink-0" />
               {currentUser.verificationStatus === 'verified' ? 'Anfitrión Verificado' : 'Verificación Pendiente'}
             </span>
-            <span className="text-xs text-slate-500 font-medium">RUT: {formatRut(currentUser.rut)}</span>
-            <span className="text-xs text-slate-300">•</span>
-            <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">RUT: {formatRut(currentUser.rut)}</span>
+            <span className="text-xs text-slate-300 hidden sm:inline">•</span>
+            <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1 whitespace-nowrap">
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               Pagos Habilitados Webpay / Stripe
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1.5 tracking-tight">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 mt-1.5 tracking-tight">
             Panel de Control de Propietario
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5 max-w-3xl">
@@ -679,13 +766,13 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             onClick={() => setActiveTab('finances')}
-            className="px-4 py-2.5 rounded-2xl font-bold text-xs border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            className="px-4 py-2.5 rounded-2xl font-bold text-xs border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
             title="Configuración de cuentas bancarias y liquidaciones"
           >
-            <Settings className="w-3.5 h-3.5 text-slate-500" />
+            <Settings className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span>Configuración</span>
           </button>
 
@@ -698,14 +785,14 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
               }
               setIsPublishModalOpen(true);
             }}
-            className={`px-5 py-2.5 rounded-2xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer ${
+            className={`px-5 py-2.5 rounded-2xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
               currentUser.verificationStatus === 'verified'
                 ? 'bg-rose-600 hover:bg-rose-700 text-white hover:shadow'
                 : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
             }`}
           >
-            <PlusCircle className="w-4 h-4" />
-            Publicar Nuevo Espacio
+            <PlusCircle className="w-4 h-4 shrink-0" />
+            <span>Publicar Nuevo Espacio</span>
           </button>
         </div>
       </div>
@@ -923,11 +1010,16 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                     </div>
                   </div>
 
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="text-xs text-slate-500 flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                        <span>{space.commune}</span>
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between min-w-0">
+                    <div className="min-w-0">
+                      <div className="text-xs text-slate-500 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                          <span className="truncate">{space.commune}</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap shrink-0">
+                          {space.capacity} pers · {space.surfaceM2} m²
+                        </span>
                       </div>
                       <h4 className="text-sm font-bold text-slate-900 mt-1 line-clamp-1">
                         {space.title}
@@ -937,39 +1029,42 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <div>
+                    <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 text-xs">
                         {(() => {
                           const rate = getSpaceRateInfo(space);
                           return (
-                            <div>
-                              <span className="font-extrabold text-slate-900">
+                            <div className="truncate">
+                              <span className="font-extrabold text-slate-900 text-sm">
                                 {formatClp(rate.amount)}
                               </span>
                               <span className="text-slate-400 font-medium"> {rate.unitLabel}</span>
                             </div>
                           );
                         })()}
+                        <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                          Garantía: <strong className="text-slate-700">{formatClp(space.securityDeposit || 100000)}</strong>
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => {
                             setSelectedSpaceId(space.id);
                             setActiveTab('calendar');
                           }}
-                          className="px-2.5 py-1 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                          className="flex-1 min-w-[115px] px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer whitespace-nowrap"
                           title="Gestionar disponibilidad y solicitudes de este recinto en el calendario"
                         >
-                          <Calendar className="w-3 h-3 text-indigo-600" />
-                          <span>Ver en Calendario</span>
+                          <Calendar className="w-3 h-3 text-indigo-600 shrink-0" />
+                          <span>Calendario</span>
                         </button>
                         <button
                           onClick={() => handleStartEdit(space)}
-                          className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                          className="flex-1 min-w-[95px] px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer whitespace-nowrap"
                           title="Modificar precio, descripción y datos del espacio"
                         >
-                          <Pencil className="w-3 h-3 text-slate-600" />
+                          <Pencil className="w-3 h-3 text-slate-600 shrink-0" />
                           <span>Modificar</span>
                         </button>
                         <button
@@ -978,7 +1073,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                               status: space.status === 'active' ? 'paused' : 'active',
                             })
                           }
-                          className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-[11px] cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-[11px] cursor-pointer whitespace-nowrap"
                         >
                           {space.status === 'active' ? 'Pausar' : 'Activar'}
                         </button>
@@ -986,7 +1081,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                           onClick={() => {
                             if (confirm('¿Eliminar este espacio?')) deleteSpace(space.id);
                           }}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer shrink-0"
                           title="Eliminar Espacio"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1200,34 +1295,43 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                         {res.status === 'pending' && (
                           <>
                             {canApprove ? (
-                              <button
-                                onClick={() => {
-                                  if (res.startDate < todayIso) {
-                                    alert('Las reservas para aprobar deben ser del día actual hacia adelante.');
-                                    return;
-                                  }
-                                  updateReservationStatus(res.id, 'confirmed');
-                                }}
-                                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 transition shadow-xs cursor-pointer"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Aceptar Arriendo</span>
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    if (res.startDate < todayIso) {
+                                      alert('Las reservas para aprobar deben ser del día actual hacia adelante.');
+                                      return;
+                                    }
+                                    updateReservationStatus(res.id, 'confirmed');
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 transition shadow-xs cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Aceptar Arriendo</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (res.startDate < todayIso) {
+                                      alert('No se pueden modificar solicitudes con fecha anterior a hoy.');
+                                      return;
+                                    }
+                                    updateReservationStatus(res.id, 'rejected');
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Rechazar</span>
+                                </button>
+                              </>
                             ) : (
                               <span
-                                className="px-3 py-2 rounded-xl bg-slate-100 text-slate-400 font-semibold text-xs border border-slate-200 cursor-not-allowed"
-                                title="No se puede aprobar una reserva con fecha de inicio anterior al día de hoy"
+                                className="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 font-semibold text-xs border border-slate-200 cursor-not-allowed flex items-center gap-1.5"
+                                title="Registro histórico: no se puede aprobar ni modificar una solicitud con fecha anterior a hoy"
                               >
-                                No Aprobable (Fecha Pasada)
+                                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Historial (Solo Lectura)</span>
                               </span>
                             )}
-                            <button
-                              onClick={() => updateReservationStatus(res.id, 'rejected')}
-                              className="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span>Rechazar</span>
-                            </button>
                           </>
                         )}
                       </div>
@@ -1285,61 +1389,122 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         </div>
       )}
 
-      {/* Pestaña: Calendario y Disponibilidad (Layout idéntico al diseño de referencia) */}
+      {/* Pestaña: Calendario y Disponibilidad (Layout bien organizado y sin desbordes) */}
       {activeTab === 'calendar' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Columna Izquierda: Selector de Recinto, Navegación, Calendario Dinámico y Ficha (8 cols en desktop) */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6 min-w-0">
             {/* Card de Gestión y Selector de Recinto */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="owner-space-selector" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      Recinto en Gestión:
-                    </label>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      {spaceModalityLabel}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-xs overflow-hidden">
+              {/* Fila 1: Etiquetas de estado del recinto */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label htmlFor="owner-space-selector" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Recinto en Gestión
+                  </label>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
+                    {spaceModalityLabel}
+                  </span>
+                  {selectedSpace && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                      ● Activo
                     </span>
-                  </div>
-                  <div className="relative">
-                    <select
-                      id="owner-space-selector"
-                      value={selectedSpace?.id || ''}
-                      onChange={(e) => setSelectedSpaceId(e.target.value)}
-                      className="text-base sm:text-lg font-bold text-slate-900 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500 transition w-full sm:w-auto"
-                    >
-                      {mySpaces.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.title} ({s.commune})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
+                  )}
+                </div>
+                {selectedSpace && (
+                  <span className="text-[11px] text-slate-500 font-medium truncate">
+                    {selectedSpace.address}, {selectedSpace.commune}
+                  </span>
+                )}
+              </div>
+
+              {/* Fila 2: Selector desplegable acotado + Botones de acción alineados dentro del límite */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+                <div className="relative min-w-0 flex-1">
+                  <select
+                    id="owner-space-selector"
+                    value={selectedSpace?.id || ''}
+                    onChange={(e) => setSelectedSpaceId(e.target.value)}
+                    className="w-full truncate text-sm sm:text-base font-bold text-slate-900 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500 transition"
+                  >
+                    {mySpaces.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.title} ({s.commune})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsMaintenanceModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-                  >
-                    <Wrench className="w-3.5 h-3.5 text-amber-600" />
-                    <span>+ Bloquear Mantención</span>
-                  </button>
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                  {ownerSelectedDate < todayIso ? (
+                    <span
+                      className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 font-bold text-xs flex items-center gap-1.5 cursor-not-allowed whitespace-nowrap"
+                      title="Estás visualizando una fecha pasada. Solo puedes bloquear o modificar desde la fecha actual hacia adelante."
+                    >
+                      <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>Fecha Pasada (Solo Lectura)</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMaintenanceDate(ownerSelectedDate >= todayIso ? ownerSelectedDate : todayIso);
+                        setIsMaintenanceModalOpen(true);
+                      }}
+                      className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap"
+                    >
+                      <Wrench className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>+ Bloquear Mantención</span>
+                    </button>
+                  )}
                   {selectedSpace && (
                     <button
                       type="button"
                       onClick={() => handleStartEdit(selectedSpace)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                      className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap"
                     >
-                      <Pencil className="w-3.5 h-3.5 text-rose-400" />
+                      <Pencil className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                       <span>Editar Tarifas y Ficha</span>
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* Fila 3: Resumen compacto de características y tarifas del recinto */}
+              {selectedSpace && (
+                <div className="pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span>
+                      Capacidad: <strong className="text-slate-900">{selectedSpace.capacity} personas</strong>
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span>
+                      Superficie: <strong className="text-slate-900">{selectedSpace.surfaceM2} m²</strong>
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span>
+                      Horario: <strong className="text-slate-900">{selectedSpace.openingHours || 'Lun-Vie 08:30-20:30'}</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {selectedSpace.pricePerHour ? (
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-semibold">
+                        Hora: <strong className="text-slate-950">{formatClp(selectedSpace.pricePerHour)}</strong>
+                      </span>
+                    ) : null}
+                    {selectedSpace.pricePerDay ? (
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-semibold">
+                        Día: <strong className="text-slate-950">{formatClp(selectedSpace.pricePerDay)}</strong>
+                      </span>
+                    ) : null}
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+                      Garantía: <strong>{formatClp(selectedSpace.securityDeposit || 100000)}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Componente Maestro de Disponibilidad Horaria en Modo Propietario (Permite ver horas pasadas y ocupaciones) */}
@@ -1363,57 +1528,70 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                 isOwnerView={true}
                 onViewContract={handleViewReservationContract}
                 onContactTenant={(t) => setContactModalTenant(t)}
-                onApproveReservation={(resId) => updateReservationStatus(resId, 'confirmed')}
+                onApproveReservation={(resId) => {
+                  const targetRes = myReceivedBookings.find((r) => r.id === resId);
+                  if (targetRes && targetRes.startDate < todayIso) {
+                    alert('No se pueden aprobar ni modificar reservas de fechas pasadas.');
+                    return;
+                  }
+                  updateReservationStatus(resId, 'confirmed');
+                }}
                 onBlockMaintenance={(date) => {
+                  if (date < todayIso) {
+                    alert(`No puedes bloquear fechas pasadas (${date}). Solo se permite bloquear o modificar desde hoy (${todayIso}) en adelante.`);
+                    return;
+                  }
                   setMaintenanceDate(date);
                   setIsMaintenanceModalOpen(true);
                 }}
+                maintenanceBlocks={maintenanceBlocks}
+                onRemoveMaintenance={handleRemoveMaintenanceBlock}
               />
             )}
 
             {/* Ficha Resumen del Recinto Seleccionado (Bottom Card) */}
             {selectedSpace && (
-              <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4 w-full sm:w-auto">
+              <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <img
                     src={selectedSpace.images[0] || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=400&q=80'}
                     alt={selectedSpace.title}
                     className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 shadow-2xs shrink-0"
                   />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm sm:text-base font-bold text-slate-900 truncate">
                         {selectedSpace.title}
                       </h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                         Activo
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">
                       {selectedSpace.address}, {selectedSpace.commune} • Capacidad: {selectedSpace.capacity} pers • {selectedSpace.surfaceM2} m²
                     </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-700">
-                      <span>Tarifa: <strong className="text-slate-900">{formatClp(selectedSpace.pricePerHour || selectedSpace.pricePerDay || 45000)}</strong></span>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-700 flex-wrap">
+                      <span>Tarifa base: <strong className="text-slate-900">{formatClp(selectedSpace.pricePerHour || selectedSpace.pricePerDay || 45000)}</strong></span>
                       <span className="text-slate-300">•</span>
                       <span>Garantía: <strong className="text-slate-900">{formatClp(selectedSpace.securityDeposit || 100000)}</strong></span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap justify-end">
                   <button
                     onClick={() => handleStartEdit(selectedSpace)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                    className="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap"
                   >
-                    <Pencil className="w-3.5 h-3.5 text-slate-600" />
+                    <Pencil className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                     <span>Editar Ficha</span>
                   </button>
                   <button
                     onClick={() => alert(`Vista pública de ${selectedSpace.title} disponible en el catálogo de Spotly.`)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                    className="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Ver Vista Pública</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Vista Pública</span>
                   </button>
                 </div>
               </div>
@@ -1421,14 +1599,14 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </div>
 
           {/* Columna Derecha: Solicitudes por Aprobar con identificación clara de recinto, Visitas Técnicas y Liquidaciones (4 cols en desktop) */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-4 space-y-6 min-w-0">
             {/* Card 1: Solicitudes por Aprobar */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-xs">
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-xs overflow-hidden">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-extrabold text-slate-900">Solicitudes por Aprobar</h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
                       {pendingValidBookings.length} Vigentes
                     </span>
                   </div>
@@ -1440,10 +1618,10 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
 
               {/* Filtro rápido: Todas vs Solo del recinto seleccionado */}
               {selectedSpace && (
-                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl text-[11px] font-bold text-slate-600">
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl text-[11px] font-bold text-slate-600">
                   <button
                     onClick={() => setPendingFilter('all')}
-                    className={`flex-1 py-1 px-2 rounded-lg transition text-center cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg transition text-center cursor-pointer whitespace-nowrap ${
                       pendingFilter === 'all'
                         ? 'bg-white text-slate-900 shadow-2xs'
                         : 'hover:text-slate-900'
@@ -1453,13 +1631,14 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                   </button>
                   <button
                     onClick={() => setPendingFilter('selected')}
-                    className={`flex-1 py-1 px-2 rounded-lg transition text-center truncate cursor-pointer ${
+                    className={`py-1.5 px-2 rounded-lg transition text-center truncate cursor-pointer ${
                       pendingFilter === 'selected'
                         ? 'bg-white text-slate-900 shadow-2xs'
                         : 'hover:text-slate-900'
                     }`}
+                    title={`Filtrar solo solicitudes para ${selectedSpace.title}`}
                   >
-                    Solo {selectedSpace.title.slice(0, 15)}...
+                    Solo este recinto
                   </button>
                 </div>
               )}
@@ -1485,28 +1664,22 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                     <div
                       key={res.id}
                       onClick={() => handleNavigateToBookingInCalendar(res)}
-                      className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200 hover:border-indigo-300 hover:shadow-md hover:bg-indigo-50/20 transition space-y-3 cursor-pointer group"
+                      className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200 hover:border-indigo-300 hover:shadow-md hover:bg-indigo-50/20 transition space-y-3 cursor-pointer group overflow-hidden"
                       title="Haz clic para ver esta solicitud en el calendario de disponibilidad del recinto"
                     >
-                      {/* DESTACADO CLAVE: Recinto al que postula + Link al Calendario */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold truncate group-hover:bg-indigo-600 group-hover:text-white transition">
+                      {/* DESTACADO CLAVE: Recinto al que postula + Badge */}
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold min-w-0 flex-1 group-hover:bg-indigo-600 group-hover:text-white transition">
                           <Building className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">Postula a: {res.spaceTitle}</span>
+                          <span className="truncate">{res.spaceTitle}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 group-hover:bg-indigo-100 hidden sm:inline-flex items-center gap-1">
-                            <CalendarIcon className="w-2.5 h-2.5" />
-                            <span>Ver en Calendario →</span>
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 whitespace-nowrap">
-                            Expira en 4h
-                          </span>
-                        </div>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 whitespace-nowrap shrink-0">
+                          Expira en 4h
+                        </span>
                       </div>
 
                       {/* Datos del Cliente */}
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 group-hover:bg-indigo-900 transition">
                           {res.tenantName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
                         </div>
@@ -1521,14 +1694,14 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                       {/* Detalles del Arriendo Solicitado */}
                       <div className="p-3 rounded-xl bg-white text-[11px] space-y-1.5 text-slate-700 border border-slate-100 shadow-2xs group-hover:border-indigo-100 transition">
                         <div className="flex items-center justify-between gap-1.5 font-semibold text-slate-900">
-                          <div className="flex items-center gap-1.5">
-                            <CalendarIcon className="w-3.5 h-3.5 text-indigo-600" />
-                            <span className="font-bold">
-                              {res.startDate} {res.durationUnits ? `• ${res.durationUnits} hrs (${res.hourStart ?? 9}:00 a ${res.hourEnd ?? (res.hourStart ?? 9) + (res.durationUnits || 4)}:00)` : `• ${res.totalDays} días`}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <CalendarIcon className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span className="font-bold truncate">
+                              {res.startDate} {res.durationUnits ? `• ${res.durationUnits} hrs (${res.hourStart ?? 9}:00-${res.hourEnd ?? (res.hourStart ?? 9) + (res.durationUnits || 4)}:00)` : `• ${res.totalDays} días`}
                             </span>
                           </div>
-                          <span className="text-[10px] font-bold text-indigo-600">
-                            Abrir fecha ↗
+                          <span className="text-[10px] font-bold text-indigo-600 whitespace-nowrap shrink-0">
+                            Ver fecha ↗
                           </span>
                         </div>
                         <p className="text-slate-600 line-clamp-2">
@@ -1542,37 +1715,39 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                         </div>
                       </div>
 
-                      {/* Acciones: Ver Contrato, Consultar, Aprobar, Rechazar */}
-                      <div className="pt-1 flex items-center gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewReservationContract(res);
-                          }}
-                          className="flex-1 min-w-[110px] py-2 px-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center gap-1 transition shadow-2xs cursor-pointer"
-                          title="Ver contrato digital formal para este arriendo"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Ver Contrato</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setContactModalTenant({
-                              name: res.tenantName,
-                              phone: '+56 9 8765 4321',
-                              email: res.tenantEmail,
-                              spaceTitle: res.spaceTitle,
-                            });
-                          }}
-                          className="py-2 px-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer"
-                          title="Contactar al arrendatario"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Consultar</span>
-                        </button>
+                      {/* Acciones bien alineadas sin desbordar */}
+                      <div className="pt-1 space-y-1.5">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewReservationContract(res);
+                            }}
+                            className="py-2 px-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center gap-1 transition shadow-2xs cursor-pointer whitespace-nowrap"
+                            title="Ver contrato digital formal para este arriendo"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span>Ver Contrato</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContactModalTenant({
+                                name: res.tenantName,
+                                phone: '+56 9 8765 4321',
+                                email: res.tenantEmail,
+                                spaceTitle: res.spaceTitle,
+                              });
+                            }}
+                            className="py-2 px-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer whitespace-nowrap"
+                            title="Contactar al arrendatario"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>Consultar</span>
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1583,10 +1758,10 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                             }
                             updateReservationStatus(res.id, 'confirmed');
                           }}
-                          className="flex-1 min-w-[100px] py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center justify-center gap-1 transition shadow-xs cursor-pointer"
+                          className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer whitespace-nowrap"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Aprobar Ahora</span>
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>Aprobar Solicitud Ahora</span>
                         </button>
                       </div>
                     </div>
@@ -1970,46 +2145,144 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Capacidad Máxima (personas)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newCapacity}
-                    placeholder="0"
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      if (val >= 0) setNewCapacity(val);
-                    }}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Superficie Total (m²)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newSurfaceM2}
-                    placeholder="0"
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      if (val >= 0) setNewSurfaceM2(val);
-                    }}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Horario de Operación</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Capacidad Máxima (personas) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={newOpeningHours}
-                    onChange={(e) => setNewOpeningHours(e.target.value)}
-                    placeholder="Lun-Vie 08:30-20:30"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                    inputMode="numeric"
+                    value={newCapacity === 0 ? '' : newCapacity}
+                    placeholder="Ej: 25"
+                    onChange={(e) => {
+                      setNewCapacity(parsePositiveIntInput(e.target.value));
+                    }}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold"
+                    required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Superficie Total (m²) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={newSurfaceM2 === 0 ? '' : newSurfaceM2}
+                    placeholder="Ej: 120"
+                    onChange={(e) => {
+                      setNewSurfaceM2(parsePositiveIntInput(e.target.value));
+                    }}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Garantía en Custodia ($ CLP) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-slate-500">$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={newSecurityDeposit === 0 ? '' : newSecurityDeposit}
+                      placeholder="Ej: 150000"
+                      onChange={(e) => {
+                        setNewSecurityDeposit(parsePositiveIntInput(e.target.value));
+                      }}
+                      className="w-full pl-7 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* HORARIO DE OPERACIÓN CON MENÚS DESPLEGABLES */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800">
+                    Horario de Operación y Disponibilidad
+                  </label>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
+                    {operationDays === '24/7'
+                      ? 'Lun-Dom 00:00-24:00 (24/7)'
+                      : `${operationDays} ${operationStartHour}-${operationEndHour}`}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Días de Disponibilidad
+                    </label>
+                    <select
+                      value={operationDays}
+                      onChange={(e) => {
+                        const nextDays = e.target.value;
+                        setOperationDays(nextDays);
+                        const formatted =
+                          nextDays === '24/7'
+                            ? 'Lun-Dom 00:00-24:00 (24/7)'
+                            : `${nextDays} ${operationStartHour}-${operationEndHour}`;
+                        setNewOpeningHours(formatted);
+                      }}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold text-slate-800 cursor-pointer"
+                    >
+                      {AVAILABILITY_DAY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Hora de Apertura
+                    </label>
+                    <select
+                      value={operationStartHour}
+                      disabled={operationDays === '24/7'}
+                      onChange={(e) => {
+                        const nextStart = e.target.value;
+                        setOperationStartHour(nextStart);
+                        setDailyOpeningHours(`${nextStart} - ${operationEndHour}`);
+                        setNewOpeningHours(`${operationDays} ${nextStart}-${operationEndHour}`);
+                      }}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold text-slate-800 cursor-pointer disabled:opacity-50"
+                    >
+                      {OPERATION_HOUR_OPTIONS.map((h) => (
+                        <option key={`op-start-${h}`} value={h}>
+                          {h} hrs
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Hora de Cierre
+                    </label>
+                    <select
+                      value={operationEndHour}
+                      disabled={operationDays === '24/7'}
+                      onChange={(e) => {
+                        const nextEnd = e.target.value;
+                        setOperationEndHour(nextEnd);
+                        setDailyOpeningHours(`${operationStartHour} - ${nextEnd}`);
+                        setNewOpeningHours(`${operationDays} ${operationStartHour}-${nextEnd}`);
+                      }}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-hidden font-semibold text-slate-800 cursor-pointer disabled:opacity-50"
+                    >
+                      {OPERATION_HOUR_OPTIONS.map((h) => (
+                        <option key={`op-end-${h}`} value={h}>
+                          {h} hrs
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -2194,14 +2467,28 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
 
             <form onSubmit={handleAddMaintenanceBlock} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Fecha a Bloquear</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Fecha a Bloquear (Desde hoy {todayIso} en adelante)
+                </label>
                 <input
                   type="date"
+                  min={todayIso}
                   value={maintenanceDate}
-                  onChange={(e) => setMaintenanceDate(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val && val < todayIso) {
+                      alert(`Solo puedes bloquear fechas desde hoy (${todayIso}) hacia adelante.`);
+                      setMaintenanceDate(todayIso);
+                      return;
+                    }
+                    setMaintenanceDate(val);
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500 focus:outline-none"
                   required
                 />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Las fechas anteriores a hoy pertenecen al historial y no pueden ser bloqueadas ni modificadas.
+                </p>
               </div>
 
               <div>
@@ -2219,28 +2506,45 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
               {/* Lista de bloqueos actuales para este espacio */}
               {maintenanceBlocks.filter((m) => m.spaceId === selectedSpace?.id).length > 0 && (
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <label className="font-bold text-slate-600 block text-[11px]">Bloqueos activos en este recinto:</label>
+                  <label className="font-bold text-slate-600 block text-[11px]">Bloqueos registrados en este recinto:</label>
                   <div className="space-y-1.5 max-h-32 overflow-y-auto">
                     {maintenanceBlocks
                       .filter((m) => m.spaceId === selectedSpace?.id)
-                      .map((block) => (
-                        <div
-                          key={block.id}
-                          className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px]"
-                        >
-                          <div>
-                            <span className="font-bold text-slate-800">{block.date}</span>
-                            <p className="text-slate-500 truncate max-w-[200px]">{block.reason}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMaintenanceBlock(block.id)}
-                            className="text-rose-600 hover:text-rose-800 font-bold px-2 py-0.5 rounded cursor-pointer"
+                      .map((block) => {
+                        const isPastBlock = block.date < todayIso;
+                        return (
+                          <div
+                            key={block.id}
+                            className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px]"
                           >
-                            Desbloquear
-                          </button>
-                        </div>
-                      ))}
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-slate-800">{block.date}</span>
+                                {isPastBlock && (
+                                  <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 text-[9px] font-bold">
+                                    Histórico
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-500 truncate max-w-[200px]">{block.reason}</p>
+                            </div>
+                            {isPastBlock ? (
+                              <span className="text-slate-400 font-semibold text-[10px] px-2 py-0.5 flex items-center gap-1">
+                                <Lock className="w-3 h-3" />
+                                Solo lectura
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMaintenanceBlock(block.id)}
+                                className="text-rose-600 hover:text-rose-800 font-bold px-2 py-0.5 rounded cursor-pointer"
+                              >
+                                Desbloquear
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -2401,35 +2705,41 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                         </button>
 
                         {booking.status === 'pending' && (
-                          <div className="grid grid-cols-2 gap-2 pt-1">
-                            <button
-                              onClick={() => {
-                                if (booking.startDate < todayIso) {
-                                  alert('Las reservas para aprobar deben ser del día actual hacia adelante.');
-                                  return;
-                                }
-                                updateReservationStatus(booking.id, 'confirmed');
-                                setSelectedDayInfo(null);
-                              }}
-                              disabled={isPastBooking}
-                              className={`py-2 px-2 rounded-xl font-bold text-xs transition cursor-pointer text-center ${
-                                isPastBooking
-                                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                              }`}
-                            >
-                              Aprobar Reserva
-                            </button>
-                            <button
-                              onClick={() => {
-                                updateReservationStatus(booking.id, 'rejected');
-                                setSelectedDayInfo(null);
-                              }}
-                              className="py-2 px-2 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs transition cursor-pointer text-center"
-                            >
-                              Rechazar
-                            </button>
-                          </div>
+                          isPastBooking ? (
+                            <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-bold text-[11px] text-center flex items-center justify-center gap-1.5">
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Registro Histórico • Sin modificaciones permitidas</span>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <button
+                                onClick={() => {
+                                  if (booking.startDate < todayIso) {
+                                    alert('Las reservas para aprobar deben ser del día actual hacia adelante.');
+                                    return;
+                                  }
+                                  updateReservationStatus(booking.id, 'confirmed');
+                                  setSelectedDayInfo(null);
+                                }}
+                                className="py-2 px-2 rounded-xl font-bold text-xs transition cursor-pointer text-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                              >
+                                Aprobar Reserva
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (booking.startDate < todayIso) {
+                                    alert('No se pueden modificar reservas de fechas pasadas.');
+                                    return;
+                                  }
+                                  updateReservationStatus(booking.id, 'rejected');
+                                  setSelectedDayInfo(null);
+                                }}
+                                className="py-2 px-2 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs transition cursor-pointer text-center"
+                              >
+                                Rechazar
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
                     </div>
@@ -2446,40 +2756,58 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                   );
                 }
 
+                const isSelectedModalDayPast = selectedDayInfo.date < todayIso;
+
                 if (maintenance) {
                   return (
                     <div className="p-3.5 rounded-2xl bg-slate-100 border border-slate-200 space-y-1.5">
                       <span className="font-bold text-slate-900">Bloqueo por Mantención</span>
                       <p className="text-slate-600">{maintenance.reason}</p>
-                      <button
-                        onClick={() => {
-                          handleRemoveMaintenanceBlock(maintenance.id);
-                          setSelectedDayInfo(null);
-                        }}
-                        className="text-rose-600 font-bold hover:underline"
-                      >
-                        Eliminar bloqueo
-                      </button>
+                      {isSelectedModalDayPast ? (
+                        <span className="text-slate-400 font-semibold text-[11px] flex items-center gap-1 pt-1">
+                          <Lock className="w-3 h-3" />
+                          Fecha pasada (Solo lectura)
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            handleRemoveMaintenanceBlock(maintenance.id);
+                            setSelectedDayInfo(null);
+                          }}
+                          className="text-rose-600 font-bold hover:underline"
+                        >
+                          Eliminar bloqueo
+                        </button>
+                      )}
                     </div>
                   );
                 }
 
                 return (
                   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
-                    <p className="font-bold text-emerald-900">Día 100% Disponible</p>
+                    <p className="font-bold text-emerald-900">
+                      {isSelectedModalDayPast ? 'Fecha Pasada (Sin Reservas)' : 'Día 100% Disponible'}
+                    </p>
                     <p className="text-[11px] text-emerald-700">
                       Tarifa vigente: {formatClp(selectedSpace?.pricePerHour || selectedSpace?.pricePerDay || 45000)}
                     </p>
-                    <button
-                      onClick={() => {
-                        setMaintenanceDate(selectedDayInfo.date);
-                        setSelectedDayInfo(null);
-                        setIsMaintenanceModalOpen(true);
-                      }}
-                      className="w-full py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition"
-                    >
-                      Bloquear este día
-                    </button>
+                    {isSelectedModalDayPast ? (
+                      <div className="w-full py-2 px-3 rounded-xl bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Historial (No bloqueable)</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setMaintenanceDate(selectedDayInfo.date);
+                          setSelectedDayInfo(null);
+                          setIsMaintenanceModalOpen(true);
+                        }}
+                        className="w-full py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition"
+                      >
+                        Bloquear este día
+                      </button>
+                    )}
                   </div>
                 );
               })()}
