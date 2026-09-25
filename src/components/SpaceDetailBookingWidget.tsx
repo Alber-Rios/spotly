@@ -372,7 +372,7 @@ export const SpaceDetailBookingWidget: React.FC<SpaceDetailBookingWidgetProps> =
     : 'ESPACIO CORPORATIVO';
 
   return (
-    <div className="sticky top-24 bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+    <div className="static lg:sticky lg:top-24 bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
       {/* 1. HEADER OSCURO SLATE (IDÉNTICO A LA REFERENCIA) */}
       <div className="bg-[#0f172a] text-white p-4 sm:p-5">
         <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-300 uppercase mb-1">

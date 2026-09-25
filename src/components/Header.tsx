@@ -292,8 +292,8 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-fadeIn">
-                      <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
+                    <div className="fixed inset-x-4 top-16 w-auto max-w-md max-h-[calc(100dvh-5rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-fadeIn sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[min(24rem,calc(100vw-2rem))]">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 pb-2 border-b border-slate-100">
                         <span className="text-sm font-semibold text-slate-900">
                           Notificaciones ({unreadNotifications.length})
                         </span>
@@ -306,7 +306,7 @@ export const Header: React.FC<HeaderProps> = ({
                           </button>
                         )}
                       </div>
-                      <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                      <div className="max-h-[min(18rem,calc(100dvh-9rem))] overflow-y-auto overscroll-contain divide-y divide-slate-100">
                         {notifications.length === 0 ? (
                           <p className="text-xs text-slate-400 py-6 text-center">No hay notificaciones</p>
                         ) : (
@@ -317,9 +317,9 @@ export const Header: React.FC<HeaderProps> = ({
                                 !n.read ? 'bg-rose-50/40' : ''
                               }`}
                             >
-                              <div className="space-y-1">
-                                <p className="text-xs font-semibold text-slate-900">{n.title}</p>
-                                <p className="text-xs text-slate-600 leading-relaxed">{n.message}</p>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p className="break-words text-xs font-semibold text-slate-900">{n.title}</p>
+                                <p className="break-words text-xs text-slate-600 leading-relaxed">{n.message}</p>
                                 <span className="text-[10px] text-slate-400 block">
                                   {new Date(n.timestamp).toLocaleTimeString('es-CL', {
                                     hour: '2-digit',
@@ -329,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({
                               </div>
                               <button
                                 onClick={() => dismissNotification(n.id)}
-                                className="text-slate-400 hover:text-slate-600 text-xs p-1"
+                                className="shrink-0 text-slate-400 hover:text-slate-600 text-xs p-1"
                               >
                                 ×
                               </button>
@@ -382,7 +382,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Menú de cambio rápido de perfil / Simulador de Roles */}
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-fadeIn">
+                    <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-fadeIn">
                       <div className="px-4 pb-3 border-b border-slate-100">
                         <p className="text-xs font-bold text-slate-900">{currentUser.fullName}</p>
                         <p className="text-xs text-slate-500">{currentUser.email}</p>

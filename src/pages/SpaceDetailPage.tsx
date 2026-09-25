@@ -248,7 +248,7 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
             COLUMNA IZQUIERDA (62% ANCHO): GALERÍA, SPECS, DETALLES,
             AMENIDADES, REGLAS, ANFITRIÓN, CALENDARIO Y MAPA
             ========================================================= */}
-        <div className="lg:col-span-8 space-y-7">
+        <div className="order-1 lg:order-none lg:col-start-1 lg:row-start-1 lg:col-span-8 space-y-7">
           {/* A. GALERÍA DE FOTOGRAFÍAS */}
           <div className="space-y-3">
             <div className="relative aspect-16/9 sm:aspect-21/10 rounded-3xl overflow-hidden bg-slate-950 border border-slate-200 shadow-md group">
@@ -521,6 +521,34 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
             </div>
           )}
 
+        </div>
+
+        <div className="order-2 lg:order-none lg:col-start-9 lg:row-start-1 lg:col-span-4 space-y-6">
+          <SpaceDetailBookingWidget
+            space={space}
+            activeModality={activeModality}
+            onModalityChange={setActiveModality}
+            startDate={startDate}
+            onStartDateChange={setStartDate}
+            endDate={endDate}
+            onEndDateChange={setEndDate}
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
+            hourStart={hourStart}
+            onHourStartChange={setHourStart}
+            hourEnd={hourEnd}
+            onHourEndChange={setHourEnd}
+            intendedUse={intendedUse}
+            onIntendedUseChange={setIntendedUse}
+            existingVisit={existingVisit}
+            onStartBooking={handleStartBooking}
+            onStartVisit={handleStartVisit}
+            onOpenAuth={onOpenAuth}
+          />
+        </div>
+
+        <div className="order-3 lg:order-none lg:col-start-1 lg:row-start-2 lg:col-span-8 space-y-7">
+
           {/* H. FICHA DEL ANFITRIÓN VERIFICADO */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -559,33 +587,6 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
           />
         </div>
 
-        {/* =========================================================
-            COLUMNA DERECHA (38% ANCHO): WIDGET STICKY DE RESERVA,
-            MODALIDADES, FORMULARIOS DE FECHA, DESGLOSE Y BOTÓN CTA
-            ========================================================= */}
-        <div className="lg:col-span-4 space-y-6">
-          <SpaceDetailBookingWidget
-            space={space}
-            activeModality={activeModality}
-            onModalityChange={setActiveModality}
-            startDate={startDate}
-            onStartDateChange={setStartDate}
-            endDate={endDate}
-            onEndDateChange={setEndDate}
-            selectedMonth={selectedMonth}
-            onMonthChange={setSelectedMonth}
-            hourStart={hourStart}
-            onHourStartChange={setHourStart}
-            hourEnd={hourEnd}
-            onHourEndChange={setHourEnd}
-            intendedUse={intendedUse}
-            onIntendedUseChange={setIntendedUse}
-            existingVisit={existingVisit}
-            onStartBooking={handleStartBooking}
-            onStartVisit={handleStartVisit}
-            onOpenAuth={onOpenAuth}
-          />
-        </div>
       </div>
 
       {/* MODAL DE RESERVA FORMAL Y PAGO */}
