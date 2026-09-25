@@ -18,6 +18,7 @@ import {
   LogOut,
   User,
   Calendar,
+  Menu,
 } from 'lucide-react';
 import { formatRut } from '../utils/formatters.ts';
 
@@ -46,8 +47,33 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const unreadNotifications = notifications.filter((n) => !n.read);
+  const mobileNavigation = [
+    { label: 'Explorar Espacios', view: 'home', icon: Search },
+    ...(currentUser?.role === 'tenant'
+      ? [{ label: 'Mis Arriendos', view: 'my-bookings', icon: FileText }]
+      : []),
+    ...(currentUser?.role === 'owner' || currentUser?.ownerTermsAccepted
+      ? [{ label: 'Panel Propietario', view: 'owner', icon: Briefcase }]
+      : []),
+    ...(currentUser?.role === 'admin'
+      ? [{ label: 'Gobierno y Procesos', view: 'admin', icon: ShieldCheck }]
+      : []),
+    ...(currentUser
+      ? [{
+          label: currentUser.verificationStatus === 'pending_review'
+            ? 'Revisión en Proceso'
+            : currentUser.verificationStatus === 'verified'
+            ? 'Verificación OK'
+            : 'Verificar Mi Cuenta',
+          view: 'onboarding',
+          icon: UserCheck,
+        }]
+      : []),
+    ...(currentUser ? [{ label: 'Mi Cuenta', view: 'profile', icon: User }] : []),
+  ];
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
@@ -74,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Navegación estrictamente adaptada al ROL o estado no registrado */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden xl:flex items-center gap-1">
               <button
                 id="nav-catalogo-btn"
                 onClick={() => onNavigate('home')}
@@ -164,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  {currentUser.verificationStatus === 'pending' ? 'Revisión en Proceso' : 'Verificar Mi Cuenta'}
+                  {currentUser.verificationStatus === 'pending_review' ? 'Revisión en Proceso' : 'Verificar Mi Cuenta'}
                 </button>
               )}
 
@@ -188,6 +214,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Acciones Derecha: Según esté registrado o no */}
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowMobileMenu((open) => !open)}
+              className="xl:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition"
+              aria-label={showMobileMenu ? 'Cerrar navegación' : 'Abrir navegación'}
+              aria-expanded={showMobileMenu}
+              aria-controls="mobile-navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             {/* CASO 1: USUARIO NO REGISTRADO (Visitante) */}
             {!currentUser ? (
               <div className="flex items-center gap-2">
@@ -440,7 +477,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <button
                             onClick={() => {
                               setShowUserMenu(false);
-                              onNavigate('tenant-reservations');
+                              onNavigate('my-bookings');
                             }}
                             className="w-full text-center py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-semibold text-xs flex items-center justify-center gap-1.5 transition"
                           >
@@ -482,6 +519,43 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         </div>
+
+        {showMobileMenu && (
+          <nav id="mobile-navigation" className="xl:hidden border-t border-slate-100 py-2 space-y-1">
+            {mobileNavigation.map(({ label, view, icon: Icon }) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onNavigate(view);
+                }}
+                aria-current={currentView === view ? 'page' : undefined}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition ${
+                  currentView === view
+                    ? 'bg-rose-50 text-rose-700'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{label}</span>
+              </button>
+            ))}
+            {currentUser?.role === 'tenant' && !currentUser.ownerTermsAccepted && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenOwnerUpgrade();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-rose-700 hover:bg-rose-50 transition"
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>Habilitarme como Propietario</span>
+              </button>
+            )}
+          </nav>
+        )}
       </div>
     </header>
   );

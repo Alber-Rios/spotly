@@ -12,9 +12,8 @@ import { TenantReservationsPage } from './pages/TenantReservationsPage.tsx';
 import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { OwnerUpgradeModal } from './components/OwnerUpgradeModal.tsx';
-import { AuthModal } from './components/AuthModal.tsx';
 import { Space } from './types.ts';
-import { ShieldCheck, Building2, ExternalLink } from 'lucide-react';
+import { ShieldCheck, Building2 } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 function AppContent() {
@@ -58,11 +57,12 @@ function AppContent() {
     // Map view string to route
     const routes: Record<string, string> = {
       'home': '/',
-      'space-detail': '/space', // Normally this would have an ID, but we handle it with selectedSpace for now
+      'space-detail': '/space',
       'login': '/login',
       'register': '/register',
       'forgot-password': '/forgot-password',
       'my-bookings': '/my-bookings',
+      'tenant-reservations': '/my-bookings',
       'owner': '/owner',
       'admin': '/admin',
       'onboarding': '/onboarding',
@@ -85,7 +85,7 @@ function AppContent() {
     : location.pathname.slice(1);
 
   return (
-    <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans antialiased selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fff_0%,_#f8fafc_44%,_#eef2ff_100%)] text-slate-800 flex flex-col font-sans antialiased selection:bg-rose-500 selection:text-white">
       {/* Header Principal */}
       <Header
         currentView={currentViewString as any}
@@ -95,7 +95,7 @@ function AppContent() {
       />
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10">
         <Routes>
           <Route path="/" element={
             <HomePage

@@ -85,7 +85,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
 
   // Usuarios pendientes de revisión de Verificación
   const pendingVerifUsers = useMemo(() => {
-    return allUsers.filter((u) => u.verificationStatus === 'pending' || (u.verificationStatus as any) === 'pending_review');
+    return allUsers.filter((u) => u.verificationStatus === 'pending_review');
   }, [allUsers]);
 
   // Espacios pendientes de aprobación o moderación
@@ -168,7 +168,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
             <Scale className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {disputes.filter((d) => d.status === 'pending').length}
+            {disputes.filter((d) => d.status === 'pending' || d.status === 'investigating').length}
           </div>
           <p className="text-[11px] text-slate-400">Casos en mediación</p>
         </button>
@@ -196,6 +196,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
           <div className="text-2xl font-bold text-slate-900">{auditLogs.length}</div>
           <p className="text-[11px] text-slate-400">Trazas de seguridad registradas</p>
         </button>
+      </div>
+
+      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-sm text-indigo-900">
+        <div className="font-semibold">Prioridades del día</div>
+        <div className="mt-1 text-indigo-700">
+          Revisión de identidad, moderación de recintos y resolución de disputas con SLA cercano a 24 horas.
+        </div>
       </div>
 
       {/* Selector de Pestañas de Gestión */}
@@ -315,17 +322,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 min-w-0">
                         <button
                           onClick={() => setSelectedVerifUser(selectedVerifUser === user.id ? null : user.id)}
-                          className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                          className="w-full sm:w-auto px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
                         >
                           <Eye className="w-4 h-4 text-indigo-600" />
                           <span>{selectedVerifUser === user.id ? 'Ocultar' : 'Ver Documentos'}</span>
                         </button>
                         <button
                           onClick={() => adminApproveKyc(user.id)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                          className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Aprobar Identidad
@@ -335,7 +342,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
                             const reason = prompt('Motivo del rechazo de verificación:') || 'Documento no legible';
                             adminRejectKyc(user.id, reason);
                           }}
-                          className="px-3 py-2 border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                          className="w-full sm:w-auto px-3 py-2 border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
                           Rechazar
@@ -468,7 +475,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             u.verificationStatus === 'verified'
                               ? 'bg-emerald-100 text-emerald-800'
-                              : u.verificationStatus === 'pending'
+                              : u.verificationStatus === 'pending_review'
                               ? 'bg-amber-100 text-amber-800'
                               : 'bg-slate-100 text-slate-700'
                           }`}
@@ -611,12 +618,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
                       <span className="font-mono text-xs font-bold text-slate-400">#{d.id}</span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          d.status === 'pending'
+                          d.status === 'pending' || d.status === 'investigating'
                             ? 'bg-rose-100 text-rose-800'
                             : 'bg-emerald-100 text-emerald-800'
                         }`}
                       >
-                        {d.status === 'pending' ? 'En Arbitraje' : d.status}
+                        {d.status === 'pending'
+                          ? 'En Arbitraje'
+                          : d.status === 'investigating'
+                          ? 'En Investigación'
+                          : d.status}
                       </span>
                     </div>
                     <div className="text-sm font-extrabold text-slate-900">
@@ -631,7 +642,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenAu
                     <div className="pt-1 text-rose-700"><strong>Motivo denunciado:</strong> {d.reason}</div>
                   </div>
 
-                  {d.status === 'pending' && (
+                  {(d.status === 'pending' || d.status === 'investigating') && (
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         onClick={() =>

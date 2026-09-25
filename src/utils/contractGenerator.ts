@@ -18,6 +18,8 @@ export function generateDigitalContract(data: {
   priceUnit?: PriceUnit;
   rentalModality?: 'por_hora' | 'por_dia' | 'mensual' | 'abierto';
   durationUnits?: number;
+  hourStart?: number;
+  hourEnd?: number;
   signatureImage?: string;
   signatureType?: 'digital_canvas' | 'token_fea';
   intendedUse?: string;
@@ -27,8 +29,9 @@ export function generateDigitalContract(data: {
   const rawPayload = `${contractId}|${data.tenantRut}|${data.ownerRut}|${data.totalClp}|${signedAt}`;
   const contractHash = generateAuditHash(rawPayload);
 
+  const hasHourlySchedule = data.hourStart !== undefined && data.hourEnd !== undefined;
   const modalityText = 
-    data.rentalModality === 'por_hora' || data.priceUnit === 'hour'
+    hasHourlySchedule || data.rentalModality === 'por_hora' || data.priceUnit === 'hour'
       ? `Por Hora (${data.durationUnits || 1} horas pactadas)`
       : data.rentalModality === 'mensual' || data.priceUnit === 'month'
       ? `Mensual (${data.durationUnits || 1} meses pactados)`

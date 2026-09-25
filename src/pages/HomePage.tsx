@@ -116,6 +116,24 @@ export const HomePage: React.FC<HomePageProps> = ({
     setMinSurfaceM2(10);
   };
 
+  const featureCards = [
+    {
+      icon: ShieldCheck,
+      title: 'Verificación real',
+      text: 'RUT, identidad y validación de seguridad para cada espacio y operación.',
+    },
+    {
+      icon: FileText,
+      title: 'Contratos digitales',
+      text: 'Documentación clara y segura bajo la normativa chilena en minutos.',
+    },
+    {
+      icon: BadgePercent,
+      title: 'Flexibilidad de pago',
+      text: 'Arriendo por hora, día o mes con condiciones alineadas a tus necesidades.',
+    },
+  ];
+
   return (
     <div className="space-y-8 pb-16">
       {/* Hero Section */}
@@ -153,76 +171,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* Decoración de fondo */}
         <div className="absolute -right-20 -bottom-20 w-96 h-96 rounded-full bg-rose-600/15 blur-3xl pointer-events-none"></div>
       </section>
-
-      {/* BANNER CONDICIONAL: Arrendatario a Propietario O Registro de Nuevo Usuario */}
-      {currentUser?.role === 'tenant' && !currentUser.ownerTermsAccepted && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border border-amber-300/60 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-rose-600 flex items-center justify-center text-white flex-shrink-0 shadow-md">
-              <Building className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-900 uppercase tracking-wider">
-                <Sparkles className="w-3 h-3 text-amber-600" />
-                Habilita tu cuenta como Anfitrión
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                ¿Tienes un inmueble o recinto desocupado en Chile?
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Los arrendatarios pueden convertirse en propietarios aceptando los términos legales de anfitrión para publicar espacios y recibir pagos en CLP.
-              </p>
-            </div>
-          </div>
-          <button
-            id="banner-upgrade-owner-btn"
-            onClick={onOpenOwnerUpgrade}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 hover:from-black hover:to-slate-900 text-white font-semibold text-xs transition flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
-          >
-            <span>Aceptar Términos de Propietario</span>
-            <ArrowRight className="w-4 h-4 text-amber-400" />
-          </button>
-        </div>
-      )}
-
-      {/* BANNER PARA VISITANTES NO REGISTRADOS */}
-      {!currentUser && (
-        <div className="bg-gradient-to-r from-rose-50 via-white to-amber-50 border border-rose-200/80 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-amber-600 flex items-center justify-center text-white flex-shrink-0 shadow-md">
-              <Building className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-800 uppercase tracking-wider">
-                <Sparkles className="w-3 h-3 text-rose-600" />
-                Comienza en Spotly
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                ¿Buscas arrendar o tienes un espacio para publicar?
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Crea tu cuenta gratuita con RUT chileno para suscribir contratos digitales conforme a la Ley N° 18.101.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => onOpenAuth?.('login')}
-              className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-white text-slate-800 font-bold text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              Iniciar Sesión
-            </button>
-            <button
-              onClick={() => onOpenAuth?.('register')}
-              className="w-1/2 sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 whitespace-nowrap shadow-sm"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              Registrarte Gratis
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Barra de Filtros */}
       <SpaceFilters

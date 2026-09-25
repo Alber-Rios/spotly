@@ -256,7 +256,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         totalClp: calculations.total,
         intendedUse: intendedUse.trim(),
         signatureImage: signatureDataUrl,
-        signatureType: 'drawn',
+        signatureType: 'digital_canvas',
         paymentSimulation: paymentData,
         rentalModality: activeModality,
         hourStart: activeModality === 'por_hora' ? hourStart : undefined,

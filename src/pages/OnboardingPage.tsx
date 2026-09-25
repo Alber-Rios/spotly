@@ -178,7 +178,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
   }
 
   // Si el usuario ya tiene su solicitud pendiente de revisión y no ha reiniciado el flujo
-  if (currentUser.verificationStatus === 'pending' && currentStep !== 4) {
+  if (currentUser.verificationStatus === 'pending_review' && currentStep !== 4) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4">
         <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center shadow-sm space-y-6">
@@ -310,7 +310,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
 
       // Actualizar estado del usuario con los datos extraídos por la AI
       updateUserProfile({
-        verificationStatus: 'pending',
+        verificationStatus: 'pending_review',
         avatarUrl: facialPhoto || currentUser.avatarUrl,
         kycData: {
           consentGiven: true,

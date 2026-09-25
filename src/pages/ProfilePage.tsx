@@ -207,7 +207,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     Identidad Verificada
                   </span>
-                ) : currentUser.verificationStatus === 'pending' || (currentUser.verificationStatus as any) === 'pending_review' ? (
+                ) : currentUser.verificationStatus === 'pending_review' ? (
                   <button
                     onClick={() => onNavigate('onboarding')}
                     className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition cursor-pointer"
@@ -312,26 +312,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           {/* BANNER DE ESTADO DE VERIFICACIÓN (AI Spotly) */}
           {currentUser.verificationStatus !== 'verified' && (
             <div className={`p-5 rounded-3xl border flex flex-col sm:flex-row items-center gap-5 shadow-xs animate-in slide-in-from-top duration-500 ${
-              currentUser.verificationStatus === 'pending' 
+              currentUser.verificationStatus === 'pending_review'
                 ? 'bg-amber-50 border-amber-200' 
                 : 'bg-indigo-50 border-indigo-200'
             }`}>
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                currentUser.verificationStatus === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                currentUser.verificationStatus === 'pending_review' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
               }`}>
-                {currentUser.verificationStatus === 'pending' ? <Clock className="w-7 h-7" /> : <ShieldCheck className="w-7 h-7" />}
+                {currentUser.verificationStatus === 'pending_review' ? <Clock className="w-7 h-7" /> : <ShieldCheck className="w-7 h-7" />}
               </div>
               <div className="flex-1 text-center sm:text-left space-y-1">
-                <h3 className={`text-sm font-black ${currentUser.verificationStatus === 'pending' ? 'text-amber-950' : 'text-indigo-950'}`}>
-                  {currentUser.verificationStatus === 'pending' ? 'Tu verificación está en proceso' : 'Mejora tu seguridad: Verifica tu Identidad'}
+                <h3 className={`text-sm font-black ${currentUser.verificationStatus === 'pending_review' ? 'text-amber-950' : 'text-indigo-950'}`}>
+                  {currentUser.verificationStatus === 'pending_review' ? 'Tu verificación está en proceso' : 'Mejora tu seguridad: Verifica tu Identidad'}
                 </h3>
-                <p className={`text-xs leading-relaxed ${currentUser.verificationStatus === 'pending' ? 'text-amber-800' : 'text-indigo-800'}`}>
-                  {currentUser.verificationStatus === 'pending' 
+                <p className={`text-xs leading-relaxed ${currentUser.verificationStatus === 'pending_review' ? 'text-amber-800' : 'text-indigo-800'}`}>
+                  {currentUser.verificationStatus === 'pending_review'
                     ? 'Nuestro equipo está revisando tus documentos. Este proceso suele tardar menos de 48 horas hábiles.' 
                     : 'Para emitir contratos legales y procesar pagos en Spotly, debes completar el escaneo inteligente de tu cédula.'}
                 </p>
               </div>
-              {currentUser.verificationStatus !== 'pending' && (
+              {currentUser.verificationStatus !== 'pending_review' && (
                 <button
                   onClick={() => onNavigate('onboarding')}
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/20 whitespace-nowrap cursor-pointer"
@@ -624,7 +624,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                       Folio Reserva: <span className="font-mono text-slate-600">{res.id}</span>
                     </span>
                     <button
-                      onClick={() => handleOpenContract(res.contractId)}
+                      onClick={() => handleOpenContract(res.digitalContractId)}
                       className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
                     >
                       <FileText className="w-3.5 h-3.5" />

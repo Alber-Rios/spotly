@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext.tsx';
 import { formatClp, formatRut } from '../utils/formatters.ts';
 import { ContractModal } from '../components/ContractModal.tsx';
 import { DigitalContract } from '../types.ts';
+import { generateDigitalContract } from '../utils/contractGenerator.ts';
 import {
   FileText,
   Clock,
@@ -31,7 +32,7 @@ export const TenantReservationsPage: React.FC<TenantReservationsPageProps> = ({
   onOpenOwnerUpgrade,
   onOpenAuth,
 }) => {
-  const { currentUser, reservations, contracts, visitRequests, createDispute } = useApp();
+  const { currentUser, allUsers, reservations, contracts, visitRequests, createDispute } = useApp();
 
   const [activeTab, setActiveTab] = useState<'reservations' | 'visits'>('reservations');
   const [selectedContract, setSelectedContract] = useState<DigitalContract | null>(null);
@@ -94,9 +95,37 @@ export const TenantReservationsPage: React.FC<TenantReservationsPageProps> = ({
     const found = contracts.find((c) => c.id === contractId);
     if (found) {
       setSelectedContract(found);
-    } else {
-      alert('Contrato digital no encontrado.');
+      return;
     }
+
+    const reservation = reservations.find((booking) => booking.digitalContractId === contractId);
+    if (!reservation) {
+      alert('No se encontró la reserva asociada a este contrato.');
+      return;
+    }
+
+    const owner = allUsers.find((user) => user.id === reservation.ownerId);
+    const generated = generateDigitalContract({
+      reservationId: reservation.id,
+      spaceTitle: reservation.spaceTitle,
+      spaceAddress: reservation.spaceAddress,
+      tenantName: reservation.tenantName,
+      tenantRut: reservation.tenantRut,
+      ownerName: reservation.ownerName,
+      ownerRut: reservation.ownerRut || owner?.rut || '14.258.963-7',
+      totalClp: reservation.totalClp,
+      guaranteeDepositClp: reservation.securityDepositClp,
+      startDate: reservation.startDate,
+      endDate: reservation.endDate,
+      ip: '200.89.68.114',
+      priceUnit: reservation.priceUnit || 'day',
+      rentalModality: reservation.rentalModality || 'por_dia',
+      durationUnits: reservation.durationUnits || reservation.totalDays || 1,
+      hourStart: reservation.hourStart,
+      hourEnd: reservation.hourEnd,
+      intendedUse: reservation.intendedUse,
+    });
+    setSelectedContract(generated);
   };
 
   const handleSendDispute = (e: React.FormEvent) => {
@@ -109,9 +138,26 @@ export const TenantReservationsPage: React.FC<TenantReservationsPageProps> = ({
     setDisputeReason('');
   };
 
+  const summaryCards = [
+    {
+      label: 'Reservas activas',
+      value: myBookings.filter((booking) => booking.status === 'confirmed').length,
+      tone: 'rose',
+    },
+    {
+      label: 'Pendientes',
+      value: myBookings.filter((booking) => booking.status === 'pending').length,
+      tone: 'amber',
+    },
+    {
+      label: 'Visitas agendadas',
+      value: myVisits.length,
+      tone: 'indigo',
+    },
+  ];
+
   return (
     <div className="space-y-8 pb-16">
-      {/* Header */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -135,6 +181,26 @@ export const TenantReservationsPage: React.FC<TenantReservationsPageProps> = ({
           <Building className="w-4 h-4" />
           Explorar Más Espacios
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {summaryCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+              card.tone === 'rose'
+                ? 'bg-rose-100 text-rose-700'
+                : card.tone === 'amber'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-indigo-100 text-indigo-700'
+            }`}>
+              {card.label}
+            </div>
+            <div className="mt-3 text-2xl font-bold text-slate-900">{card.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Si el arrendatario aún no es propietario, mostramos el banner de conversión */}

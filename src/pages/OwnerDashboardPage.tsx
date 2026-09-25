@@ -607,6 +607,8 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
       priceUnit: reservation.priceUnit || 'day',
       rentalModality: reservation.rentalModality || 'por_dia',
       durationUnits: reservation.durationUnits || reservation.totalDays || 1,
+      hourStart: reservation.hourStart,
+      hourEnd: reservation.hourEnd,
       intendedUse: reservation.intendedUse,
     });
     setSelectedContract(generated);
