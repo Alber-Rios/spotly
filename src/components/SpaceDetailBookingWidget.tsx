@@ -593,54 +593,38 @@ export const SpaceDetailBookingWidget: React.FC<SpaceDetailBookingWidgetProps> =
               {/* Casillas de selección Fecha de Inicio y Fecha de Término */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[11px] font-extrabold text-slate-700">Fecha de Inicio</label>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded">Inicio</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      min={todayIso}
-                      value={startDate}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val < todayIso) return;
-                        onStartDateChange(val);
-                        if (val > endDate) {
-                          onEndDateChange(val);
-                        }
-                      }}
-                      className="w-full px-2 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
-                    />
-                  </div>
-                  <div className="pt-0.5">
-                    <span className="text-xs font-black text-slate-900 block">{formatIsoToDateDisplay(startDate)}</span>
-                    <span className="text-[10px] font-bold text-slate-500 block">Check-in: 09:00 AM</span>
-                  </div>
+                  <label className="block text-[11px] font-extrabold text-slate-700">Fecha de Inicio</label>
+                  <input
+                    type="date"
+                    min={todayIso}
+                    value={startDate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val < todayIso) return;
+                      onStartDateChange(val);
+                      if (val > endDate) {
+                        onEndDateChange(val);
+                      }
+                    }}
+                    className="w-full px-2 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                  />
+                  <span className="text-[10px] font-bold text-slate-500 block">Check-in: 09:00 AM</span>
                 </div>
 
                 <div className="space-y-1 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[11px] font-extrabold text-slate-700">Fecha de Término</label>
-                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded">Término</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={endDate}
-                      min={startDate >= todayIso ? startDate : todayIso}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val < todayIso || val < startDate) return;
-                        onEndDateChange(val);
-                      }}
-                      className="w-full px-2 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
-                    />
-                  </div>
-                  <div className="pt-0.5">
-                    <span className="text-xs font-black text-slate-900 block">{formatIsoToDateDisplay(endDate)}</span>
-                    <span className="text-[10px] font-bold text-slate-500 block">Check-out: 05:00 PM</span>
-                  </div>
+                  <label className="block text-[11px] font-extrabold text-slate-700">Fecha de Término</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate >= todayIso ? startDate : todayIso}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val < todayIso || val < startDate) return;
+                      onEndDateChange(val);
+                    }}
+                    className="w-full px-2 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                  />
+                  <span className="text-[10px] font-bold text-slate-500 block">Check-out: 05:00 PM</span>
                 </div>
               </div>
 
@@ -960,7 +944,7 @@ export const SpaceDetailBookingWidget: React.FC<SpaceDetailBookingWidgetProps> =
                   ¿Por qué vas a utilizar el espacio? (Uso y Destino)
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Exprésate libremente: describe el objetivo de tu actividad, dinámicas o requerimientos especiales. Se estipulará fielmente en el Contrato Digital (Ley N° 18.101).
+                  Exprésate libremente: describe el objetivo de tu actividad, dinámicas o requerimientos especiales.
                 </p>
               </div>
               <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md shrink-0 uppercase tracking-wider">
@@ -1239,22 +1223,11 @@ export const SpaceDetailBookingWidget: React.FC<SpaceDetailBookingWidgetProps> =
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-emerald-800 bg-emerald-50/80 py-1.5 px-3 rounded-xl border border-emerald-100">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                <span>Perfil verificado • Protección legal Spotly activa</span>
+                <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Perfil verificado • Garantía en custodia escrow (Ley 18.101)</span>
               </div>
             </div>
           )}
-
-          {/* ESCROW Y SEGURIDAD */}
-          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/90 text-[11px] text-slate-600 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Garantía Protegida Spotly Escrow</span>
-            </div>
-            <p className="text-[10px] leading-relaxed text-slate-500">
-              Tu garantía se mantendrá en custodia en cuenta escrow hasta el término del contrato según Ley 18.101 chilena.
-            </p>
-          </div>
         </div>
       ) : (
         /* PESTAÑA VISITA PREVIA */

@@ -1,4 +1,4 @@
-import { AuditLog, AuditMetadata, UserRole } from '../types.ts';
+import { AuditLog, AuditMetadata } from '../types.ts';
 
 const AUDIT_STORAGE_KEY = 'spotly_audit_logs_v1';
 

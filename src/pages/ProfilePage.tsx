@@ -1,31 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.tsx';
-import { UserGender, DigitalContract } from '../types.ts';
-import { formatClp, formatRut, validateRut } from '../utils/formatters.ts';
-import { ContractModal } from '../components/ContractModal.tsx';
+import { UserGender } from '../types.ts';
+import { formatRut, validateRut } from '../utils/formatters.ts';
 import {
   User,
-  Calendar,
-  CreditCard,
-  Bell,
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  FileText,
   MapPin,
   Phone,
   Mail,
   Edit3,
   Save,
-  Building,
-  ArrowRight,
-  ExternalLink,
-  Trash2,
   Clock,
   Sparkles,
-  Award,
-  Upload,
   Camera,
+  Building,
 } from 'lucide-react';
 
 interface ProfilePageProps {
@@ -42,15 +32,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const {
     currentUser,
     updateUserProfile,
-    reservations,
-    contracts,
-    notifications,
-    markAllNotificationsRead,
-    dismissNotification,
   } = useApp();
-
-  const [activeTab, setActiveTab] = useState<'details' | 'reservations' | 'notifications'>('details');
-  const [selectedContract, setSelectedContract] = useState<DigitalContract | null>(null);
 
   // Formulario de edición de datos personales
   const [fullName, setFullName] = useState(currentUser?.fullName || '');
@@ -105,11 +87,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     );
   }
 
-  // Filtrar reservas que pertenecen a este usuario (como arrendatario)
-  const myReservations = useMemo(() => {
-    return reservations.filter((r) => r.tenantId === currentUser.id);
-  }, [reservations, currentUser.id]);
-
   // Manejo de actualización de perfil
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,15 +131,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         setAvatarUrl(ev.target?.result as string);
       };
       reader.readAsDataURL(file);
-    }
-  };
-
-  const handleOpenContract = (contractId?: string) => {
-    const found = contracts.find((c) => c.id === contractId);
-    if (found) {
-      setSelectedContract(found);
-    } else {
-      alert('Contrato digital no encontrado.');
     }
   };
 
@@ -267,48 +235,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
       </div>
 
-      {/* PESTAÑAS DE NAVEGACIÓN */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('details')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'details'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <User className="w-4 h-4" />
-          Mis Datos Personales
-        </button>
-
-        <button
-          onClick={() => setActiveTab('reservations')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'reservations'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          Mis Reservas ({myReservations.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'notifications'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Bell className="w-4 h-4" />
-          Centro de Notificaciones ({notifications.length})
-        </button>
-      </div>
-
-      {/* PESTAÑA 1: MIS DATOS PERSONALES (ACTUALIZABLES) */}
-      {activeTab === 'details' && (
-        <div className="space-y-6">
+      {/* SECCIÓN PRINCIPAL: MIS DATOS PERSONALES */}
+      <div className="space-y-6">
           {/* BANNER DE ESTADO DE VERIFICACIÓN (AI Spotly) */}
           {currentUser.verificationStatus !== 'verified' && (
             <div className={`p-5 rounded-3xl border flex flex-col sm:flex-row items-center gap-5 shadow-xs animate-in slide-in-from-top duration-500 ${
@@ -499,252 +427,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </form>
         </div>
       </div>
-    )}
-
-    {/* PESTAÑA 2: MIS RESERVAS */}
-      {activeTab === 'reservations' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                Historial de Arriendos y Reservas
-              </h2>
-              <p className="text-xs text-slate-500">
-                Detalle de recintos reservados, uso declarado, pagos simulados y contratos Ley 18.101.
-              </p>
-            </div>
-            <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-700 rounded-xl">
-              {myReservations.length} {myReservations.length === 1 ? 'Reserva' : 'Reservas'}
-            </span>
-          </div>
-
-          {myReservations.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4">
-              <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-3xl flex items-center justify-center mx-auto">
-                <Calendar className="w-8 h-8" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">Aún no tienes reservas activas</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Explora el catálogo de oficinas, recintos abiertos y cerrados para agendar tu primer espacio en Chile.
-              </p>
-              <button
-                onClick={() => onNavigate('home')}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2"
-              >
-                <span>Explorar Espacios Disponibles</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {myReservations.map((res) => (
-                <div
-                  key={res.id}
-                  className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-4 hover:border-slate-300 transition"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <img
-                        src={res.spaceImage}
-                        alt={res.spaceTitle}
-                        className="w-20 h-20 rounded-2xl object-cover ring-1 ring-slate-200 flex-shrink-0"
-                      />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-md">
-                            {res.spaceCategory}
-                          </span>
-                          {res.spaceEnvironment && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                              {res.spaceEnvironment === 'abierto' ? 'Al Aire Libre' : 'Techado / Cerrado'}
-                            </span>
-                          )}
-                          <span
-                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md ${
-                              res.status === 'confirmed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-900'
-                            }`}
-                          >
-                            {res.status === 'confirmed' ? '✓ Confirmada' : 'Pendiente'}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-slate-900">{res.spaceTitle}</h4>
-                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                          {res.spaceAddress}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-left sm:text-right space-y-1 sm:pl-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                      <div className="text-xs text-slate-400">Total Transacción</div>
-                      <div className="text-base font-black text-slate-900">{formatClp(res.totalClp)}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {res.startDate} al {res.endDate} ({res.totalDays} {res.totalDays === 1 ? 'día' : 'días'})
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* USO DECLARADO OBLIGATORIO */}
-                  {res.intendedUse && (
-                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
-                      <div className="font-bold text-slate-700 flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-rose-600" />
-                        <span>Uso declarado para el espacio:</span>
-                      </div>
-                      <p className="text-slate-600 italic">"{res.intendedUse}"</p>
-                    </div>
-                  )}
-
-                  {/* SIMULACIÓN DE PAGO TRANSPANK / TARJETA */}
-                  {res.paymentSimulation && (
-                    <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-emerald-700" />
-                        <div>
-                          <span className="font-bold text-slate-800 uppercase">
-                            {res.paymentSimulation.cardBrand} •••• {res.paymentSimulation.last4}
-                          </span>
-                          <span className="text-[11px] text-slate-500 block">
-                            Titular: {res.paymentSimulation.cardHolder} • {res.paymentSimulation.installments === 1 ? 'Sin cuotas' : `${res.paymentSimulation.installments} cuotas`}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-left sm:text-right text-[11px] text-slate-500">
-                        <span>Código Aut: <strong className="font-mono text-slate-700">{res.paymentSimulation.authorizationCode}</strong></span>
-                        <span className="block text-emerald-700 font-bold">Transbank Webpay Plus OK</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <span className="text-[11px] text-slate-400">
-                      Folio Reserva: <span className="font-mono text-slate-600">{res.id}</span>
-                    </span>
-                    <button
-                      onClick={() => handleOpenContract(res.digitalContractId)}
-                      className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Ver Contrato Digital Ley 18.101
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* PESTAÑA 3: CENTRO DE NOTIFICACIONES */}
-      {activeTab === 'notifications' && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Bell className="w-4 h-4 text-rose-600" />
-                Centro de Notificaciones Oficiales
-              </h2>
-              <p className="text-xs text-slate-500">
-                Avisos de bienvenida, confirmaciones de reserva y comunicados legales del sistema.
-              </p>
-            </div>
-            {notifications.length > 0 && (
-              <button
-                onClick={markAllNotificationsRead}
-                className="text-xs text-rose-600 hover:text-rose-700 font-bold transition"
-              >
-                Marcar todas como leídas
-              </button>
-            )}
-          </div>
-
-          {/* Tarjeta de Bienvenida Exclusiva */}
-          <div className="p-5 bg-gradient-to-r from-rose-50 via-amber-50 to-orange-50 rounded-2xl border border-rose-200 shadow-xs space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold">
-                👋
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  ¡Te damos la bienvenida a Spotly Chile, {currentUser.fullName.split(' ')[0]}!
-                </h3>
-                <p className="text-xs text-slate-600">
-                  Tu ecosistema seguro para reservar y gestionar espacios comerciales con marco legal chileno.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs text-slate-700">
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <strong className="block text-slate-900">1. Contratos Ley 18.101</strong>
-                Generados y firmados de forma digital automáticamente.
-              </div>
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <strong className="block text-slate-900">2. Pago Seguro Transbank</strong>
-                Simulación completa de tarjetas bancarias y Webpay.
-              </div>
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <strong className="block text-slate-900">3. Verificación Oficial</strong>
-                Validación biométrica facial y revisión de documentos por administración.
-              </div>
-            </div>
-          </div>
-
-          {/* Lista de Notificaciones de la Sesión */}
-          <div className="space-y-3">
-            {notifications.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">No tienes notificaciones pendientes.</p>
-            ) : (
-              notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  className={`p-4 rounded-2xl border transition flex items-start justify-between gap-4 ${
-                    !notif.read
-                      ? 'bg-rose-50/40 border-rose-200'
-                      : 'bg-slate-50/60 border-slate-200'
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900">{notif.title}</span>
-                      {!notif.read && (
-                        <span className="w-2 h-2 rounded-full bg-rose-600"></span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">{notif.message}</p>
-                    <span className="text-[10px] text-slate-400 block pt-1 font-mono">
-                      {new Date(notif.timestamp).toLocaleString('es-CL', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => dismissNotification(notif.id)}
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition"
-                    title="Descartar notificación"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Modal para visualizar contratos */}
-      <ContractModal
-        contract={selectedContract}
-        isOpen={Boolean(selectedContract)}
-        onClose={() => setSelectedContract(null)}
-      />
     </div>
   );
 };

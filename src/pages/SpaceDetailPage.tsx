@@ -523,7 +523,7 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
 
         </div>
 
-        <div className="order-2 lg:order-none lg:col-start-9 lg:row-start-1 lg:col-span-4 space-y-6">
+        <div className="order-2 lg:order-none lg:col-start-9 lg:row-start-1 lg:col-span-4 lg:row-span-2 space-y-6">
           <SpaceDetailBookingWidget
             space={space}
             activeModality={activeModality}

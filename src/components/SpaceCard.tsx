@@ -7,8 +7,6 @@ import {
   Users,
   Maximize2,
   ShieldCheck,
-  Building,
-  Sparkles,
   Sun,
   Building2,
 } from 'lucide-react';

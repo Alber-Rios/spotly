@@ -21,7 +21,6 @@ import {
   Trash2,
   Check,
   Eye,
-  RefreshCw,
   Sparkles,
 } from 'lucide-react';
 

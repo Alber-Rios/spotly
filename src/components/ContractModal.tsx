@@ -2,7 +2,6 @@ import React from 'react';
 import { DigitalContract } from '../types.ts';
 import { formatClp, formatRut } from '../utils/formatters.ts';
 import {
-  FileText,
   ShieldCheck,
   Printer,
   CheckCircle2,

@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Building,
   ArrowRight,
-  CheckCircle2,
   FileText,
   BadgePercent,
   Compass,
@@ -139,33 +138,13 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Hero Section */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950 text-white p-6 sm:p-12 shadow-xl border border-slate-800">
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold">
-            <Compass className="w-3.5 h-3.5 text-rose-400" />
-            Mercado Corporativo y Creativo en Chile • Pesos Chilenos (CLP)
-          </div>
-
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
-            Encuentra y arrienda el espacio ideal para tu negocio en Chile
+            Encuentra y arrienda el espacio ideal para tu negocio
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Oficinas privadas, salas para eventos, coworkings y estudios audiovisuales en Las Condes, Providencia, Santiago Centro y regiones. Suscribe contratos digitales en minutos con respaldo legal chileno.
+            Oficinas privadas, salas para eventos, coworkings y estudios audiovisuales en Las Condes, Providencia, Santiago Centro y regiones. Suscribe contratos digitales en minutos.
           </p>
-
-          <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
-            <span className="flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Contratos bajo Ley N° 18.101
-            </span>
-            <span className="flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Verificación de Cédula y RUT
-            </span>
-            <span className="flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Depósitos en Garantía Custodiados
-            </span>
-          </div>
         </div>
 
         {/* Decoración de fondo */}
@@ -192,7 +171,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Conteo de Resultados */}
       <div className="flex items-center justify-between px-1">
         <p className="text-xs font-semibold text-slate-500">
-          Mostrando <span className="text-slate-900 font-bold">{filteredSpaces.length}</span> espacios disponibles en Chile
+          Mostrando <span className="text-slate-900 font-bold">{filteredSpaces.length}</span> espacios disponibles
         </p>
       </div>
 

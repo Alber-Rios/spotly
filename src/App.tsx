@@ -23,11 +23,6 @@ function AppContent() {
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [isOwnerUpgradeModalOpen, setIsOwnerUpgradeModalOpen] = useState(false);
   
-  // Estado para modal de Autenticación (fallback)
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authNotice, setAuthNotice] = useState<string | undefined>(undefined);
-
   const handleOpenAuth = (mode: 'login' | 'register', notice?: string) => {
     if (mode === 'login') {
       navigate('/login', { state: { notice } });
