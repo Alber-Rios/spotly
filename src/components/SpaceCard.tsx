@@ -1,5 +1,6 @@
 import React from 'react';
 import { Space } from '../types.ts';
+import { useApp } from '../context/AppContext.tsx';
 import { formatClp, getSpaceRateInfo } from '../utils/formatters.ts';
 import {
   MapPin,
@@ -9,6 +10,7 @@ import {
   ShieldCheck,
   Sun,
   Building2,
+  Heart,
 } from 'lucide-react';
 
 interface SpaceCardProps {
@@ -26,6 +28,9 @@ const CATEGORY_NAMES: Record<string, string> = {
 };
 
 export const SpaceCard: React.FC<SpaceCardProps> = ({ space, onSelect }) => {
+  const { isSpaceFavorite, toggleFavoriteSpace } = useApp();
+  const isFavorite = isSpaceFavorite(space.id);
+
   return (
     <div
       id={`space-card-${space.id}`}
@@ -40,6 +45,28 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({ space, onSelect }) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
+
+        {/* Botón Favorito (Corazón) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavoriteSpace(space.id);
+          }}
+          aria-label={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+          title={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+          className={`absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xs transition transform active:scale-90 cursor-pointer shadow-sm ${
+            isFavorite
+              ? 'bg-white text-rose-600 ring-1 ring-rose-200'
+              : 'bg-slate-900/45 hover:bg-white text-white hover:text-rose-600'
+          }`}
+        >
+          <Heart
+            className={`w-4 h-4 transition-transform ${
+              isFavorite ? 'fill-rose-500 text-rose-500 scale-110' : ''
+            }`}
+          />
+        </button>
 
         {/* Categoría & Entorno Badges */}
         <div className="absolute top-3 left-3 flex flex-col items-start gap-1">

@@ -60,7 +60,7 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
   onOpenAuth,
 }) => {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, spaces, visitRequests, reservations } = useApp();
+  const { currentUser, spaces, visitRequests, reservations, isSpaceFavorite, toggleFavoriteSpace } = useApp();
 
   // Resolver espacio activo
   const space = useMemo(() => {
@@ -103,8 +103,8 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
   const [bookingModalInitialStep, setBookingModalInitialStep] = useState<1 | 2>(1);
   const [createdContract, setCreatedContract] = useState<DigitalContract | null>(null);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const isLiked = space ? isSpaceFavorite(space.id) : false;
 
   // Visita existente si aplica
   const existingVisit = useMemo(() => {
@@ -217,7 +217,7 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
 
           <button
             type="button"
-            onClick={() => setIsLiked(!isLiked)}
+            onClick={() => toggleFavoriteSpace(space.id)}
             className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
               isLiked
                 ? 'bg-rose-50 border-rose-200 text-rose-600'
@@ -225,7 +225,7 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
             }`}
           >
             <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-slate-500'}`} />
-            <span className="text-xs">{isLiked ? 'Guardado' : 'Guardar'}</span>
+            <span className="text-xs">{isLiked ? 'Guardado en Favoritos' : 'Guardar'}</span>
           </button>
         </div>
       </div>

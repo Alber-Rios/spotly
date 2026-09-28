@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext.tsx';
 import {
   Building2,
@@ -9,17 +9,18 @@ import {
   ChevronDown,
   Sparkles,
   Search,
-  KeyRound,
   FileText,
   Briefcase,
   LogIn,
   UserPlus,
   LogOut,
   User,
-  Calendar,
-  Menu,
   ChevronRight,
   X,
+  Clock,
+  Check,
+  SlidersHorizontal,
+  Heart,
 } from 'lucide-react';
 import { formatRut } from '../utils/formatters.ts';
 
@@ -34,7 +35,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentView,
   onNavigate,
   onOpenOwnerUpgrade,
-  onOpenAuth,
 }) => {
   const {
     currentUser,
@@ -44,74 +44,200 @@ export const Header: React.FC<HeaderProps> = ({
     notifications,
     markAllNotificationsRead,
     dismissNotification,
+    favoriteSpaceIds,
   } = useApp();
 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showDemoSwitcher, setShowDemoSwitcher] = useState(false);
 
   const unreadNotifications = notifications.filter((n) => !n.read);
-  const mobileNavigation = [
-    { label: 'Explorar Espacios', view: 'home', icon: Search },
-    ...(currentUser?.role === 'tenant'
-      ? [{ label: 'Mis Arriendos', view: 'my-bookings', icon: FileText }]
-      : []),
-    ...(currentUser?.role === 'owner' || currentUser?.ownerTermsAccepted
-      ? [{ label: 'Panel Propietario', view: 'owner', icon: Briefcase }]
-      : []),
-    ...(currentUser?.role === 'admin'
-      ? [{ label: 'Gobierno y Procesos', view: 'admin', icon: ShieldCheck }]
-      : []),
-    ...(currentUser
-      ? [{
-          label: currentUser.verificationStatus === 'pending_review'
-            ? 'Revisión en Proceso'
-            : currentUser.verificationStatus === 'verified'
-            ? 'Verificación OK'
-            : 'Verificar Mi Cuenta',
-          view: 'onboarding',
-          icon: UserCheck,
-        }]
-      : []),
-    ...(currentUser ? [{ label: 'Mi Cuenta', view: 'profile', icon: User }] : []),
-  ];
+
+  // Close menus on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowUserMenu(false);
+        setShowNotifications(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const getRoleMeta = (role?: string) => {
+    if (role === 'admin') {
+      return {
+        label: 'Admin Gobierno',
+        shortLabel: 'Admin',
+        dotColor: 'bg-indigo-500',
+        textColor: 'text-indigo-700',
+        badgeBg: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+      };
+    }
+    if (role === 'owner') {
+      return {
+        label: 'Propietario',
+        shortLabel: 'Propietario',
+        dotColor: 'bg-amber-500',
+        textColor: 'text-amber-700',
+        badgeBg: 'bg-amber-50 text-amber-800 ring-amber-600/20',
+      };
+    }
+    return {
+      label: 'Arrendatario',
+      shortLabel: 'Arrendatario',
+      dotColor: 'bg-emerald-500',
+      textColor: 'text-emerald-700',
+      badgeBg: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+    };
+  };
+
+  const roleMeta = getRoleMeta(currentUser?.role);
+
+  const handleMenuNavigate = (view: string) => {
+    setShowUserMenu(false);
+    onNavigate(view);
+  };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Marca */}
-          <div className="flex items-center gap-8">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-[4.25rem] gap-3">
+          {/* Logo & Navegación Principal en Tablet/PC */}
+          <div className="flex items-center gap-6 lg:gap-8 min-w-0">
             <button
               id="brand-logo-btn"
               onClick={() => onNavigate('home')}
-              className="flex items-center gap-2.5 text-left group transition"
+              className="flex items-center gap-2.5 text-left group transition shrink-0 focus:outline-none"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 flex items-center justify-center text-white shadow-sm shadow-rose-500/20 group-hover:scale-105 transition-transform">
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xl font-bold tracking-tight text-slate-900 block leading-tight">
+                <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 block leading-none">
                   Spotly
                 </span>
-                <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase block">
+                <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase block mt-0.5">
                   Espacios Chile
                 </span>
               </div>
             </button>
 
-      </div>
+            {/* Enlaces rápidos visibles en Tablet (md) y PC (lg) */}
+            <nav className="hidden md:flex items-center gap-1">
+              <button
+                onClick={() => onNavigate('home')}
+                className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                  currentView === 'home' || currentView === 'space-detail'
+                    ? 'text-slate-900 bg-slate-100/90'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                Explorar Espacios
+              </button>
 
-          {/* Acciones Derecha: Según esté registrado o no */}
-          <div className="flex items-center gap-3">
+              <button
+                onClick={() => onNavigate('favorites')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                  currentView === 'favorites'
+                    ? 'text-rose-600 bg-rose-50/80'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Heart
+                  className={`w-3.5 h-3.5 ${
+                    currentView === 'favorites' || favoriteSpaceIds.length > 0
+                      ? 'fill-rose-500 text-rose-500'
+                      : 'text-slate-400'
+                  }`}
+                />
+                <span>Favoritos</span>
+                {favoriteSpaceIds.length > 0 && (
+                  <span className="text-[11px] font-bold text-rose-600 tabular-nums">
+                    ({favoriteSpaceIds.length})
+                  </span>
+                )}
+              </button>
+
+              {currentUser && (
+                <button
+                  onClick={() => onNavigate('my-bookings')}
+                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                    currentView === 'my-bookings'
+                      ? 'text-slate-900 bg-slate-100/90'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  Mis Reservas
+                </button>
+              )}
+
+              {currentUser && (currentUser.role === 'owner' || currentUser.ownerTermsAccepted) && (
+                <button
+                  onClick={() => onNavigate('owner')}
+                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                    currentView === 'owner'
+                      ? 'text-rose-600 bg-rose-50/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  Panel Propietario
+                </button>
+              )}
+
+              {currentUser && currentUser.role === 'admin' && (
+                <button
+                  onClick={() => onNavigate('admin')}
+                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                    currentView === 'admin'
+                      ? 'text-indigo-600 bg-indigo-50/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  Panel Gobierno
+                </button>
+              )}
+            </nav>
+          </div>
+
+          {/* Acciones Derecha */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Botón Rápido de Favoritos en Móvil */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowUserMenu(false);
+                setShowNotifications(false);
+                onNavigate('favorites');
+              }}
+              className={`md:hidden relative w-10 h-10 flex items-center justify-center rounded-full border transition cursor-pointer ${
+                currentView === 'favorites'
+                  ? 'bg-rose-50 border-rose-200 text-rose-600'
+                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-rose-600 hover:bg-slate-50'
+              }`}
+              aria-label="Mis Favoritos"
+              title="Mis Favoritos"
+            >
+              <Heart
+                className={`w-[18px] h-[18px] ${
+                  favoriteSpaceIds.length > 0 ? 'fill-rose-500 text-rose-500' : ''
+                }`}
+              />
+              {favoriteSpaceIds.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white tabular-nums">
+                  {favoriteSpaceIds.length}
+                </span>
+              )}
+            </button>
+
             {/* CASO 1: USUARIO NO REGISTRADO (Visitante) */}
             {!currentUser ? (
-              <div className="flex items-center gap-2">
-
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   id="header-login-btn"
                   onClick={() => onNavigate('login')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   <LogIn className="w-4 h-4 text-slate-500" />
                   <span>Iniciar Sesión</span>
@@ -120,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   id="header-register-btn"
                   onClick={() => onNavigate('register')}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition transform active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition transform active:scale-95 cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Registrarte</span>
@@ -128,7 +254,6 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               <>
-
                 {/* Campana de Notificaciones */}
                 <div className="relative">
                   <button
@@ -136,52 +261,77 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => {
                       setShowNotifications(!showNotifications);
                       setShowUserMenu(false);
-                      setShowMobileMenu(false);
                     }}
-                    className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                    className={`relative w-10 h-10 flex items-center justify-center rounded-full border transition cursor-pointer ${
+                      showNotifications
+                        ? 'bg-slate-100 border-slate-300 text-slate-900'
+                        : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
                     aria-label="Notificaciones"
                   >
-                    <Bell className="w-5 h-5" />
+                    <Bell className="w-[18px] h-[18px]" />
                     {unreadNotifications.length > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-600 rounded-full ring-2 ring-white"></span>
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-600 rounded-full ring-2 ring-white" />
                     )}
                   </button>
 
                   {showNotifications && (
                     <>
                       <div
-                        className="fixed inset-0 z-40 bg-black/5"
+                        className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-none"
                         onClick={() => setShowNotifications(false)}
                       />
-                      <div className="fixed inset-x-4 top-16 w-auto max-w-md max-h-[calc(100dvh-5rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-3 z-50 animate-fadeIn sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[min(24rem,calc(100vw-2rem))]">
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 pb-2 border-b border-slate-100">
-                          <span className="text-sm font-semibold text-slate-900">
-                            Notificaciones ({unreadNotifications.length})
-                          </span>
-                          {unreadNotifications.length > 0 && (
+                      <div className="fixed inset-x-3 top-[4.5rem] w-auto max-h-[calc(100dvh-5.5rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-3 z-50 flex flex-col sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2.5 sm:w-[22rem] md:w-[24rem]">
+                        <div className="flex items-center justify-between gap-2 px-4 pb-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-900">
+                              Notificaciones
+                            </span>
+                            {unreadNotifications.length > 0 && (
+                              <span className="text-xs font-semibold text-rose-600">
+                                · {unreadNotifications.length} nuevas
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {unreadNotifications.length > 0 && (
+                              <button
+                                onClick={markAllNotificationsRead}
+                                className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
+                              >
+                                Marcar leídas
+                              </button>
+                            )}
                             <button
-                              onClick={markAllNotificationsRead}
-                              className="text-xs text-rose-600 hover:text-rose-700 font-medium"
+                              onClick={() => setShowNotifications(false)}
+                              className="sm:hidden p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                              aria-label="Cerrar notificaciones"
                             >
-                              Marcar leídas
+                              <X className="w-4 h-4" />
                             </button>
-                          )}
+                          </div>
                         </div>
-                        <div className="max-h-[min(18rem,calc(100dvh-9rem))] overflow-y-auto overscroll-contain divide-y divide-slate-100">
+                        <div className="max-h-[min(20rem,calc(100dvh-9rem))] overflow-y-auto overscroll-contain divide-y divide-slate-100">
                           {notifications.length === 0 ? (
-                            <p className="text-xs text-slate-400 py-6 text-center">No hay notificaciones</p>
+                            <p className="text-xs text-slate-400 py-8 text-center">
+                              No tienes notificaciones pendientes
+                            </p>
                           ) : (
                             notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`p-3.5 hover:bg-slate-50 transition flex items-start justify-between gap-3 ${
-                                  !n.read ? 'bg-rose-50/40' : ''
+                                className={`p-3.5 hover:bg-slate-50/80 transition flex items-start justify-between gap-3 ${
+                                  !n.read ? 'bg-rose-50/30' : ''
                                 }`}
                               >
                                 <div className="min-w-0 flex-1 space-y-1">
-                                  <p className="break-words text-xs font-semibold text-slate-900">{n.title}</p>
-                                  <p className="break-words text-xs text-slate-600 leading-relaxed">{n.message}</p>
-                                  <span className="text-[10px] text-slate-400 block">
+                                  <p className="break-words text-xs font-semibold text-slate-900">
+                                    {n.title}
+                                  </p>
+                                  <p className="break-words text-xs text-slate-600 leading-relaxed">
+                                    {n.message}
+                                  </p>
+                                  <span className="text-[11px] text-slate-400 block">
                                     {new Date(n.timestamp).toLocaleTimeString('es-CL', {
                                       hour: '2-digit',
                                       minute: '2-digit',
@@ -190,9 +340,10 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                                 <button
                                   onClick={() => dismissNotification(n.id)}
-                                  className="shrink-0 text-slate-400 hover:text-slate-600 text-xs p-1"
+                                  className="shrink-0 text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100"
+                                  aria-label="Descartar notificación"
                                 >
-                                  ×
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             ))
@@ -203,195 +354,422 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
 
-                {/* Selector de Perfil */}
+                {/* Selector de Perfil (Adaptado para Móvil, Tablet y PC) */}
                 <div className="relative">
                   <button
                     id="user-profile-menu-btn"
                     onClick={() => {
                       setShowUserMenu(!showUserMenu);
                       setShowNotifications(false);
-                      setShowMobileMenu(false);
                     }}
-                    className="flex items-center gap-2.5 p-1.5 pl-2.5 rounded-full border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition shadow-xs"
+                    aria-expanded={showUserMenu}
+                    className={`flex items-center gap-2 sm:gap-2.5 p-1 sm:pl-3 sm:pr-2 sm:py-1.5 rounded-full border transition cursor-pointer select-none ${
+                      showUserMenu
+                        ? 'border-slate-300 bg-slate-50 shadow-xs ring-2 ring-slate-900/5'
+                        : 'border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/70 shadow-2xs'
+                    }`}
                   >
-                    <div className="text-left hidden lg:block">
-                      <div className="text-xs font-bold text-slate-900 leading-tight">
+                    {/* Nombre y rol visibles desde Tablet (sm) y PC */}
+                    <div className="text-left hidden sm:block max-w-[120px] md:max-w-[150px]">
+                      <div className="text-xs font-bold text-slate-900 leading-tight truncate">
                         {currentUser.fullName.split(' ')[0]}
                       </div>
-                      <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                        {currentUser.role === 'admin' ? (
-                          <span className="text-indigo-600 font-bold">Admin Gobierno</span>
-                        ) : currentUser.role === 'owner' ? (
-                          <span className="text-amber-700 font-bold">Propietario</span>
-                        ) : (
-                          <span className="text-emerald-600 font-bold">Arrendatario</span>
-                        )}
+                      <div className="text-[11px] leading-tight flex items-center gap-1 mt-0.5">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${roleMeta.dotColor}`} />
+                        <span className={`font-semibold truncate ${roleMeta.textColor}`}>
+                          {roleMeta.shortLabel}
+                        </span>
                       </div>
                     </div>
-                    <div className="relative">
+
+                    {/* Avatar con indicador de verificación */}
+                    <div className="relative shrink-0">
                       <img
-                        src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
+                        src={
+                          currentUser.avatarUrl ||
+                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
+                        }
                         alt={currentUser.fullName}
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-white"
+                        className="w-8 h-8 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-slate-100"
                       />
                       {currentUser.verificationStatus === 'verified' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 text-white rounded-full p-0.5" title="Verificado">
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 text-white rounded-full p-0.5 ring-2 ring-white"
+                          title="Identidad Verificada"
+                        >
                           <CheckCircle2 className="w-2.5 h-2.5" />
                         </span>
                       )}
                     </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-slate-400 mr-1 sm:mr-0 transition-transform duration-200 ${
+                        showUserMenu ? 'rotate-180 text-slate-700' : ''
+                      }`}
+                    />
                   </button>
 
-                  {/* Menú Dropdown estilo MercadoLibre */}
+                  {/* Menú Desplegable Responsivo: Panel Flotante en Móvil / Popover en Tablet y PC */}
                   {showUserMenu && (
                     <>
+                      {/* Backdrop con ligero desenfoque en móvil para separar del contenido */}
                       <div
-                        className="fixed inset-0 z-40"
+                        className="fixed inset-0 z-40 bg-slate-900/25 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-none"
                         onClick={() => setShowUserMenu(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 animate-fadeIn overflow-hidden">
 
-                        {/* Cabecera: avatar + nombre + Mi perfil */}
-                        <div className="bg-slate-50 px-5 py-4 flex items-center gap-3 border-b border-slate-100">
-                          <div className="relative shrink-0">
-                            <img
-                              src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
-                              alt={currentUser.fullName}
-                              className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow"
-                            />
-                            {currentUser.verificationStatus === 'verified' && (
-                              <span className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 text-white rounded-full p-0.5">
-                                <CheckCircle2 className="w-3 h-3" />
+                      <div
+                        role="menu"
+                        aria-orientation="vertical"
+                        className="fixed inset-x-3 top-[4.5rem] z-50 max-h-[calc(100dvh-5.25rem)] flex flex-col bg-white rounded-2xl shadow-[0_20px_50px_-12px_rgba(15,23,42,0.22)] border border-slate-200/90 overflow-hidden sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2.5 sm:w-[21.5rem] md:w-[23rem]"
+                      >
+                        {/* Contenedor con scroll interno seguro para pantallas pequeñas o modo horizontal */}
+                        <div className="overflow-y-auto overscroll-contain divide-y divide-slate-100">
+                          {/* 1. Cabecera de Perfil */}
+                          <div className="p-4 sm:px-5 sm:py-4 bg-gradient-to-b from-slate-50/90 to-white">
+                            <div className="flex items-center gap-3.5">
+                              <div className="relative shrink-0">
+                                <img
+                                  src={
+                                    currentUser.avatarUrl ||
+                                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
+                                  }
+                                  alt={currentUser.fullName}
+                                  className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ring-2 ring-white shadow-sm"
+                                />
+                                {currentUser.verificationStatus === 'verified' && (
+                                  <span
+                                    className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 text-white rounded-full p-0.5 ring-2 ring-white shadow-2xs"
+                                    title="KYC Verificado"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm sm:text-[15px] font-bold text-slate-900 truncate">
+                                    {currentUser.fullName}
+                                  </p>
+                                  <button
+                                    onClick={() => setShowUserMenu(false)}
+                                    className="sm:hidden -mr-1 p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                                    aria-label="Cerrar menú"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                <p className="text-xs text-slate-500 truncate mt-0.5">
+                                  {roleMeta.label}
+                                  {currentUser.rut ? ` · RUT ${formatRut(currentUser.rut)}` : ''}
+                                </p>
+
+                                <button
+                                  onClick={() => handleMenuNavigate('profile')}
+                                  className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-semibold mt-1.5 group cursor-pointer"
+                                >
+                                  <span>Mi perfil y cuenta</span>
+                                  <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 2. Tarjeta de Acción Principal (Propietario / Publicar / Admin) */}
+                          <div className="p-2.5 sm:p-3 bg-white">
+                            {currentUser.role === 'tenant' && !currentUser.ownerTermsAccepted ? (
+                              <button
+                                onClick={() => {
+                                  setShowUserMenu(false);
+                                  onOpenOwnerUpgrade();
+                                }}
+                                className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-700 hover:to-amber-600 text-white shadow-sm transition group cursor-pointer text-left"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
+                                    <Sparkles className="w-4 h-4 text-amber-100" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="block text-xs sm:text-sm font-bold leading-snug truncate">
+                                      Publica tu espacio en Spotly
+                                    </span>
+                                    <span className="block text-[11px] text-rose-100 truncate">
+                                      Activa tu cuenta de propietario
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                              </button>
+                            ) : currentUser.role === 'owner' || currentUser.ownerTermsAccepted ? (
+                              <button
+                                onClick={() => handleMenuNavigate('owner')}
+                                className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl transition group cursor-pointer text-left ${
+                                  currentView === 'owner'
+                                    ? 'bg-slate-900 text-white shadow-sm'
+                                    : 'bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-700 hover:to-amber-600 text-white shadow-sm'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
+                                    <Briefcase className="w-4 h-4 text-white" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="block text-xs sm:text-sm font-bold leading-snug truncate">
+                                      Panel Propietario
+                                    </span>
+                                    <span className="block text-[11px] text-white/85 truncate">
+                                      Gestiona espacios, reservas e ingresos
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                              </button>
+                            ) : currentUser.role === 'admin' ? (
+                              <button
+                                onClick={() => handleMenuNavigate('admin')}
+                                className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition group cursor-pointer text-left"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-indigo-100" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="block text-xs sm:text-sm font-bold leading-snug truncate">
+                                      Panel Administrador
+                                    </span>
+                                    <span className="block text-[11px] text-indigo-100 truncate">
+                                      Auditoría KYC y gobierno de plataforma
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                              </button>
+                            ) : null}
+                          </div>
+
+                          {/* 3. Navegación Principal con Estados Activos y Targets Táctiles Amplios */}
+                          <div className="p-2 space-y-0.5">
+                            <button
+                              onClick={() => handleMenuNavigate('home')}
+                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                currentView === 'home' || currentView === 'space-detail'
+                                  ? 'bg-rose-50/70 text-rose-900'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                  currentView === 'home' || currentView === 'space-detail'
+                                    ? 'bg-rose-100 text-rose-600'
+                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                }`}
+                              >
+                                <Search className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                  Explorar Espacios
+                                </span>
+                                <span className="block text-[11px] text-slate-400 truncate">
+                                  Catálogo de oficinas, estudios y salas
+                                </span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                            </button>
+
+                            <button
+                              onClick={() => handleMenuNavigate('favorites')}
+                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                currentView === 'favorites'
+                                  ? 'bg-rose-50/70 text-rose-900'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                  currentView === 'favorites'
+                                    ? 'bg-rose-100 text-rose-600'
+                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                }`}
+                              >
+                                <Heart
+                                  className={`w-4 h-4 ${
+                                    favoriteSpaceIds.length > 0 ? 'fill-rose-500 text-rose-500' : ''
+                                  }`}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    Mis Favoritos
+                                  </span>
+                                  {favoriteSpaceIds.length > 0 && (
+                                    <span className="text-xs font-bold text-rose-600 tabular-nums">
+                                      · {favoriteSpaceIds.length}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="block text-[11px] text-slate-400 truncate">
+                                  Lugares guardados para comparar y reservar
+                                </span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                            </button>
+
+                            <button
+                              onClick={() => handleMenuNavigate('my-bookings')}
+                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                currentView === 'my-bookings'
+                                  ? 'bg-rose-50/70 text-rose-900'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                  currentView === 'my-bookings'
+                                    ? 'bg-rose-100 text-rose-600'
+                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                }`}
+                              >
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                  Mis Reservas
+                                </span>
+                                <span className="block text-[11px] text-slate-400 truncate">
+                                  Arriendos activos y contratos digitales
+                                </span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                            </button>
+
+                            <button
+                              onClick={() => handleMenuNavigate('onboarding')}
+                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                currentView === 'onboarding'
+                                  ? 'bg-emerald-50/70 text-emerald-900'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                  currentUser.verificationStatus === 'verified'
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : currentUser.verificationStatus === 'pending_review'
+                                    ? 'bg-amber-50 text-amber-600'
+                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600'
+                                }`}
+                              >
+                                {currentUser.verificationStatus === 'pending_review' ? (
+                                  <Clock className="w-4 h-4" />
+                                ) : (
+                                  <UserCheck className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    {currentUser.verificationStatus === 'verified'
+                                      ? 'Verificación OK'
+                                      : currentUser.verificationStatus === 'pending_review'
+                                      ? 'Verificación en Revisión'
+                                      : 'Verificar Mi Cuenta'}
+                                  </span>
+                                </div>
+                                <span className="block text-[11px] text-slate-400 truncate">
+                                  {currentUser.verificationStatus === 'verified'
+                                    ? 'Identidad biométrica y cédula al día'
+                                    : 'Validación de cédula chilena y biometría'}
+                                </span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                            </button>
+                          </div>
+
+                          {/* 4. Selector Demo Multi-Rol */}
+                          <div className="p-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowDemoSwitcher(!showDemoSwitcher)}
+                              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition cursor-pointer"
+                            >
+                              <span className="flex items-center gap-2">
+                                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Simular usuario (Demo)</span>
                               </span>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                                  showDemoSwitcher ? 'rotate-180 text-slate-600' : ''
+                                }`}
+                              />
+                            </button>
+
+                            {showDemoSwitcher && (
+                              <div className="mt-1.5 space-y-1 px-1 pb-1">
+                                {allUsers.map((u) => {
+                                  const isCurrent = u.id === currentUser.id;
+                                  const uRole = getRoleMeta(u.role);
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => {
+                                        switchUser(u.id);
+                                        setShowUserMenu(false);
+                                        if (u.role === 'admin') onNavigate('admin');
+                                        else if (u.role === 'owner') onNavigate('owner');
+                                        else onNavigate('home');
+                                      }}
+                                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
+                                        isCurrent
+                                          ? 'bg-rose-50/90 text-rose-900 font-semibold'
+                                          : 'text-slate-600 hover:bg-slate-100/80'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <img
+                                          src={u.avatarUrl}
+                                          alt={u.fullName}
+                                          className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+                                        />
+                                        <div className="min-w-0">
+                                          <p className="truncate leading-tight">{u.fullName}</p>
+                                          <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                                            {uRole.shortLabel}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {isCurrent && (
+                                        <Check className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold text-slate-900 truncate">{currentUser.fullName}</p>
+
+                          {/* 5. Pie: Cerrar Sesión */}
+                          <div className="p-2 bg-slate-50/40">
                             <button
-                              onClick={() => { setShowUserMenu(false); onNavigate('profile'); }}
-                              className="flex items-center gap-0.5 text-xs text-rose-600 hover:text-rose-700 font-semibold mt-0.5 transition"
+                              onClick={() => {
+                                logout();
+                                setShowUserMenu(false);
+                                onNavigate('home');
+                              }}
+                              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-rose-50/80 text-rose-600 transition group cursor-pointer"
                             >
-                              Mi perfil
-                              <ChevronRight className="w-3.5 h-3.5" />
+                              <div className="w-9 h-9 rounded-lg bg-rose-50 group-hover:bg-rose-100/80 flex items-center justify-center shrink-0 transition">
+                                <LogOut className="w-4 h-4 text-rose-600" />
+                              </div>
+                              <span className="flex-1 text-sm font-semibold text-left">
+                                Cerrar Sesión
+                              </span>
                             </button>
                           </div>
                         </div>
-
-                        {/* Banner de acción destacada */}
-                        {currentUser.role === 'tenant' && !currentUser.ownerTermsAccepted ? (
-                          <button
-                            onClick={() => { setShowUserMenu(false); onOpenOwnerUpgrade(); }}
-                            className="w-full flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-700 hover:to-amber-600 text-white transition"
-                          >
-                            <span className="flex items-center gap-2.5 text-sm font-bold">
-                              <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />
-                              Publica tu espacio en Spotly
-                            </span>
-                            <ChevronRight className="w-4 h-4 shrink-0 opacity-80" />
-                          </button>
-                        ) : (currentUser.role === 'owner' || currentUser.ownerTermsAccepted) ? (
-                          <button
-                            onClick={() => { setShowUserMenu(false); onNavigate('owner'); }}
-                            className="w-full flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-700 hover:to-amber-600 text-white transition"
-                          >
-                            <span className="flex items-center gap-2.5 text-sm font-bold">
-                              <Briefcase className="w-4 h-4 text-amber-200 shrink-0" />
-                              Panel Propietario
-                            </span>
-                            <ChevronRight className="w-4 h-4 shrink-0 opacity-80" />
-                          </button>
-                        ) : currentUser.role === 'admin' ? (
-                          <button
-                            onClick={() => { setShowUserMenu(false); onNavigate('admin'); }}
-                            className="w-full flex items-center justify-between px-5 py-3.5 bg-indigo-700 hover:bg-indigo-800 text-white transition"
-                          >
-                            <span className="flex items-center gap-2.5 text-sm font-bold">
-                              <ShieldCheck className="w-4 h-4 text-indigo-200 shrink-0" />
-                              Panel Administrador
-                            </span>
-                            <ChevronRight className="w-4 h-4 shrink-0 opacity-60" />
-                          </button>
-                        ) : null}
-
-                        {/* Lista vertical de navegación */}
-                        <div className="divide-y divide-slate-50">
-                          <button
-                            onClick={() => { setShowUserMenu(false); onNavigate('home'); }}
-                            className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition group"
-                          >
-                            <Search className="w-5 h-5 text-slate-400 group-hover:text-rose-500 shrink-0 transition" />
-                            <span className="flex-1 text-sm font-medium text-slate-700 text-left">Explorar Espacios</span>
-                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition" />
-                          </button>
-
-                          <button
-                            onClick={() => { setShowUserMenu(false); onNavigate('my-bookings'); }}
-                            className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition group"
-                          >
-                            <FileText className="w-5 h-5 text-slate-400 group-hover:text-rose-500 shrink-0 transition" />
-                            <span className="flex-1 text-sm font-medium text-slate-700 text-left">Mis Reservas</span>
-                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition" />
-                          </button>
-
-                          <button
-                            onClick={() => { setShowUserMenu(false); onNavigate('onboarding'); }}
-                            className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition group"
-                          >
-                            <UserCheck className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 shrink-0 transition" />
-                            <span className="flex-1 text-sm font-medium text-slate-700 text-left">
-                              {currentUser.verificationStatus === 'verified' ? 'Verificación OK' : 'Verificar Mi Cuenta'}
-                            </span>
-                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition" />
-                          </button>
-                        </div>
-
-                        {/* Sección demo multi-rol */}
-                        <div className="border-t border-slate-100">
-                          <details className="group">
-                            <summary className="flex items-center justify-between px-5 py-3 text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer select-none hover:bg-slate-50 transition list-none">
-                              <span>Simular usuario (Demo)</span>
-                              <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
-                            </summary>
-                            <div className="pb-1 space-y-0.5 px-3">
-                              {allUsers.map((u) => (
-                                <button
-                                  key={u.id}
-                                  onClick={() => {
-                                    switchUser(u.id);
-                                    setShowUserMenu(false);
-                                    if (u.role === 'admin') onNavigate('admin');
-                                    else if (u.role === 'owner') onNavigate('owner');
-                                    else onNavigate('home');
-                                  }}
-                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition ${
-                                    u.id === currentUser.id
-                                      ? 'bg-rose-50 text-rose-800 font-bold'
-                                      : 'text-slate-600 hover:bg-slate-100'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 truncate">
-                                    <img src={u.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                    <span className="truncate">{u.fullName}</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400 capitalize shrink-0 ml-1">{u.role}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </details>
-                        </div>
-
-                        {/* Cerrar sesión */}
-                        <div className="border-t border-slate-100">
-                          <button
-                            onClick={() => { logout(); setShowUserMenu(false); onNavigate('home'); }}
-                            className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-rose-50 transition group"
-                          >
-                            <LogOut className="w-5 h-5 text-rose-400 shrink-0" />
-                            <span className="flex-1 text-sm font-semibold text-rose-600 text-left">Cerrar Sesión</span>
-                          </button>
-                        </div>
-
                       </div>
                     </>
                   )}
@@ -400,8 +778,8 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         </div>
-
       </div>
     </header>
   );
 };
+

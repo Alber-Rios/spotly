@@ -11,6 +11,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage.tsx';
 import { TenantReservationsPage } from './pages/TenantReservationsPage.tsx';
 import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
+import { FavoritesPage } from './pages/FavoritesPage.tsx';
 import { OwnerUpgradeModal } from './components/OwnerUpgradeModal.tsx';
 import { Space } from './types.ts';
 import { ShieldCheck, Building2 } from 'lucide-react';
@@ -53,6 +54,7 @@ function AppContent() {
     const routes: Record<string, string> = {
       'home': '/',
       'space-detail': '/space',
+      'favorites': '/favorites',
       'login': '/login',
       'register': '/register',
       'forgot-password': '/forgot-password',
@@ -120,6 +122,13 @@ function AppContent() {
           <Route path="/login" element={<LoginPage onNavigate={handleNavigate} />} />
           <Route path="/register" element={<RegisterPage onNavigate={handleNavigate} />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
+
+          <Route path="/favorites" element={
+            <FavoritesPage
+              onNavigate={handleNavigate}
+              onSelectSpace={handleSelectSpace}
+            />
+          } />
 
           <Route path="/my-bookings" element={
             <TenantReservationsPage

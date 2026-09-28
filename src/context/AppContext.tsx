@@ -105,6 +105,11 @@ interface AppContextType {
   markAllNotificationsRead: () => void;
   // View states helpers
   isOwnerCapable: boolean;
+  // Favorites
+  favoriteSpaceIds: string[];
+  toggleFavoriteSpace: (spaceId: string) => void;
+  isSpaceFavorite: (spaceId: string) => boolean;
+  clearFavorites: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -117,6 +122,7 @@ const STORAGE_KEY_CONTRACTS = 'spotly_contracts_v1';
 const STORAGE_KEY_DISPUTES = 'spotly_disputes_v1';
 const STORAGE_KEY_SAVED_CARDS = 'spotly_saved_cards_v1';
 const STORAGE_KEY_VISIT_REQUESTS = 'spotly_visit_requests_v1';
+const STORAGE_KEY_FAVORITES = 'spotly_favorites_v1';
 
 const INITIAL_SAVED_CARDS: SavedCard[] = [
   {
@@ -237,6 +243,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return stored ? JSON.parse(stored) : INITIAL_VISIT_REQUESTS;
     } catch {
       return INITIAL_VISIT_REQUESTS;
+    }
+  });
+
+  // Espacios favoritos por usuario (mapa userId -> string[])
+  const [favoritesByUser, setFavoritesByUser] = useState<Record<string, string[]>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_FAVORITES);
+      if (stored) return JSON.parse(stored);
+      return {
+        'user-tenant-1': ['spc-1', 'spc-3'],
+        'user-owner-1': ['spc-2', 'spc-4'],
+        'user-admin-1': ['spc-1'],
+        guest: ['spc-1', 'spc-3'],
+      };
+    } catch {
+      return {
+        'user-tenant-1': ['spc-1', 'spc-3'],
+        'user-owner-1': ['spc-2', 'spc-4'],
+        'user-admin-1': ['spc-1'],
+        guest: ['spc-1', 'spc-3'],
+      };
     }
   });
 
@@ -1150,6 +1177,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return currentUser.role === 'owner' || (currentUser.role === 'admin' && currentUser.ownerTermsAccepted);
   }, [currentUser]);
 
+  // Sincronización de favoritos
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(favoritesByUser));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [favoritesByUser]);
+
+  const activeUserKey = currentUser ? currentUser.id : 'guest';
+
+  const favoriteSpaceIds = useMemo(() => {
+    return favoritesByUser[activeUserKey] || [];
+  }, [favoritesByUser, activeUserKey]);
+
+  const isSpaceFavorite = (spaceId: string): boolean => {
+    return favoriteSpaceIds.includes(spaceId);
+  };
+
+  const toggleFavoriteSpace = (spaceId: string) => {
+    setFavoritesByUser((prev) => {
+      const currentList = prev[activeUserKey] || [];
+      const exists = currentList.includes(spaceId);
+      const nextList = exists
+        ? currentList.filter((id) => id !== spaceId)
+        : [spaceId, ...currentList];
+      return {
+        ...prev,
+        [activeUserKey]: nextList,
+      };
+    });
+
+    const targetSpace = spaces.find((s) => s.id === spaceId);
+    const wasFav = favoriteSpaceIds.includes(spaceId);
+
+    addAuditRecord(wasFav ? 'SPACE_FAVORITE_REMOVED' : 'SPACE_FAVORITE_ADDED', 'info', {
+      spaceId,
+      spaceTitle: targetSpace?.title || spaceId,
+    });
+  };
+
+  const clearFavorites = () => {
+    setFavoritesByUser((prev) => ({
+      ...prev,
+      [activeUserKey]: [],
+    }));
+    addAuditRecord('FAVORITES_CLEARED', 'info', { userId: activeUserKey });
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1189,6 +1265,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dismissNotification,
         markAllNotificationsRead,
         isOwnerCapable,
+        favoriteSpaceIds,
+        toggleFavoriteSpace,
+        isSpaceFavorite,
+        clearFavorites,
       }}
     >
       {children}
