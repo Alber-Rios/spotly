@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Space, DigitalContract, PaymentSimulationData, VisitRequest } from '../types.ts';
 import { useApp } from '../context/AppContext.tsx';
 import { formatClp, formatRut, getTodayIso, getOffsetDateIso } from '../utils/formatters.ts';
@@ -89,6 +90,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialSelectedMonth = '2026-10',
 }) => {
   const { currentUser, createBooking, requestVisit, quickVerifyUser, savedCards } = useApp();
+  const navigate = useNavigate();
 
   // Modo activo: 'booking' (Reserva formal) o 'visit' (Solicitud de visita)
   const [activeMode, setActiveMode] = useState<'booking' | 'visit'>(initialMode);
@@ -418,15 +420,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="space-y-5">
               {/* BLOQUEO POR VERIFICACIÓN */}
               {(!currentUser || currentUser.verificationStatus !== 'verified') ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 sm:p-8 space-y-6 text-center animate-in fade-in zoom-in duration-300">
-                  <div className="w-20 h-20 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-sm ring-4 ring-white">
+                <div className={`border rounded-3xl p-6 sm:p-8 space-y-6 text-center animate-in fade-in zoom-in duration-300 ${
+                  currentUser?.verificationStatus === 'rejected'
+                    ? 'bg-rose-50 border-rose-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-sm ring-4 ring-white ${
+                    currentUser?.verificationStatus === 'rejected'
+                      ? 'bg-rose-100 text-rose-600'
+                      : 'bg-amber-100 text-amber-600'
+                  }`}>
                     <ShieldCheck className="w-10 h-10" />
                   </div>
                   
                   <div className="space-y-2">
-                    <h3 className="text-xl font-black text-amber-950">Se requiere Perfil Verificado</h3>
-                    <p className="text-sm text-amber-800 leading-relaxed max-w-sm mx-auto">
-                      Para emitir contratos legales bajo la **Ley 18.101** y procesar pagos seguros, tu identidad debe ser validada por nuestro sistema AI.
+                    <h3 className={`text-xl font-black ${
+                      currentUser?.verificationStatus === 'rejected' ? 'text-rose-950' : 'text-amber-950'
+                    }`}>
+                      {currentUser?.verificationStatus === 'rejected'
+                        ? 'Tu solicitud de verificación fue rechazada'
+                        : 'Se requiere verificación para reservar'}
+                    </h3>
+                    <p className={`text-sm leading-relaxed max-w-sm mx-auto ${
+                      currentUser?.verificationStatus === 'rejected' ? 'text-rose-800' : 'text-amber-800'
+                    }`}>
+                      {currentUser?.verificationStatus === 'rejected' ? (
+                        <>
+                          <strong>Motivo del rechazo:</strong> "
+                          {currentUser.kycRejectionReason ||
+                            currentUser.kycData?.rejectionReason ||
+                            'La documentación enviada presenta observaciones o no es legible.'}
+                          "
+                        </>
+                      ) : (
+                        <>
+                          Por normativa de seguridad, solo usuarios con <strong>Perfil Verificado</strong> pueden emitir contratos bajo la <strong>Ley 18.101</strong> y realizar pagos en Spotly.
+                        </>
+                      )}
                     </p>
                   </div>
 
@@ -453,11 +483,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                   <div className="flex flex-col gap-3">
                     <button
-                      onClick={() => (window.location.hash = '#onboarding')}
-                      className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black text-sm transition shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2"
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate('/onboarding');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-full py-4 text-white rounded-2xl font-black text-sm transition shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                        currentUser?.verificationStatus === 'rejected'
+                          ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                          : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                      }`}
                     >
                       <FileCheck2 className="w-5 h-5" />
-                      <span>Verificar mi Identidad Ahora</span>
+                      <span>
+                        {currentUser?.verificationStatus === 'rejected'
+                          ? 'Ver Estado de Solicitud y Corregir Documentos'
+                          : 'Verificar mi Identidad Ahora'}
+                      </span>
                     </button>
                     <button
                       onClick={() => setActiveMode('visit')}
@@ -614,6 +657,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Campo obligatorio: ¿Para qué va a utilizar este lugar? */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <label className="text-xs font-extrabold text-slate-900 block">
+                      ¿Para qué va a utilizar este lugar?
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={intendedUse}
+                      onChange={(e) => setIntendedUse(e.target.value)}
+                      placeholder="Comenta aquí para qué vas a utilizar este lugar..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-hidden bg-white"
+                    />
+                  </div>
+
                   {/* Checkbox de aceptación legal */}
                   <label className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100 transition">
                     <input
@@ -651,6 +708,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             onClose();
                             onOpenAuth('login', 'Debes iniciar sesión o registrarte para realizar tu reserva.');
                           }
+                          return;
+                        }
+                        if (!intendedUse.trim()) {
+                          setError('Por favor comenta para qué vas a utilizar este lugar antes de continuar.');
                           return;
                         }
                         if (!acceptContract) {

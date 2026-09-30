@@ -7,12 +7,17 @@ import { RentalModalitySelector } from '../components/RentalModalitySelector.tsx
 import { SpaceAvailabilityViewer } from '../components/SpaceAvailabilityViewer.tsx';
 import { generateDigitalContract } from '../utils/contractGenerator.ts';
 import {
+  downloadContractDocument,
+  downloadReservationDocument,
+} from '../utils/documentDownloader.ts';
+import {
   Building,
   PlusCircle,
   Clock,
   CheckCircle2,
   XCircle,
   FileText,
+  Download,
   Banknote,
   TrendingUp,
   Calendar,
@@ -228,6 +233,25 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     );
   }
 
+  // Si es administrador, avisar que esta vista es exclusiva de propietarios
+  if (currentUser.role === 'admin') {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4">
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-sm space-y-5">
+          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-bold text-slate-900">Sesión de Administrador Activa</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              El rol de Administrador supervisa la plataforma desde el Panel de Administración y no publica ni arrienda propiedades a título personal.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // REGLA CRÍTICA DE ACCESO: Si es arrendatario sin términos aceptados, no puede ver el panel de propietario
   if (currentUser.role === 'tenant' && !currentUser.ownerTermsAccepted) {
     return (
@@ -283,25 +307,114 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     );
   }, [myReceivedBookings, todayIso]);
 
-  // Métricas financieras del propietario
+  // Visitas técnicas vigentes (solo desde hoy en adelante; si ya pasó el día de la visita ya no aparece)
+  const upcomingVisitRequests = useMemo(() => {
+    return visitRequests.filter(
+      (v) => v.ownerId === currentUser.id && v.visitDate >= todayIso && v.status !== 'cancelled'
+    );
+  }, [visitRequests, currentUser.id, todayIso]);
+
+  // Métricas financieras reales del propietario y desglose real por cada lugar
   const financialMetrics = useMemo(() => {
     let grossIncome = 0;
     let platformFeesPaid = 0;
     let depositsHeld = 0;
     let confirmedCount = 0;
+    let totalBookedUnits = 0;
+
+    const bySpace: Record<
+      string,
+      {
+        spaceId: string;
+        spaceTitle: string;
+        commune: string;
+        status: Space['status'];
+        grossIncome: number;
+        platformFeesPaid: number;
+        netPayout: number;
+        depositsHeld: number;
+        confirmedCount: number;
+        pendingCount: number;
+        bookedDaysOrBlocks: number;
+        occupancyPct: number;
+      }
+    > = {};
+
+    mySpaces.forEach((sp) => {
+      bySpace[sp.id] = {
+        spaceId: sp.id,
+        spaceTitle: sp.title,
+        commune: sp.commune,
+        status: sp.status,
+        grossIncome: 0,
+        platformFeesPaid: 0,
+        netPayout: 0,
+        depositsHeld: 0,
+        confirmedCount: 0,
+        pendingCount: 0,
+        bookedDaysOrBlocks: 0,
+        occupancyPct: 0,
+      };
+    });
 
     myReceivedBookings.forEach((b) => {
+      const fee = b.platformFeeClp ?? Math.round(b.subtotalClp * 0.05);
+      if (b.status === 'pending' && b.startDate >= todayIso) {
+        if (bySpace[b.spaceId]) {
+          bySpace[b.spaceId].pendingCount += 1;
+        }
+      }
       if (b.status === 'confirmed' || b.status === 'completed') {
         grossIncome += b.subtotalClp;
-        platformFeesPaid += b.platformFeeClp;
-        depositsHeld += b.securityDepositClp;
+        platformFeesPaid += fee;
+        depositsHeld += b.securityDepositClp || 0;
         confirmedCount++;
+        const daysUsed = Math.max(1, b.totalDays || 1);
+        totalBookedUnits += daysUsed;
+
+        if (bySpace[b.spaceId]) {
+          bySpace[b.spaceId].grossIncome += b.subtotalClp;
+          bySpace[b.spaceId].platformFeesPaid += fee;
+          bySpace[b.spaceId].netPayout += b.subtotalClp - fee;
+          bySpace[b.spaceId].depositsHeld += b.securityDepositClp || 0;
+          bySpace[b.spaceId].confirmedCount += 1;
+          bySpace[b.spaceId].bookedDaysOrBlocks += daysUsed;
+        }
       }
     });
 
+    Object.values(bySpace).forEach((item) => {
+      // Ocupación real sobre base de 20 jornadas hábiles mensuales por recinto
+      item.occupancyPct = Math.min(100, Math.round((item.bookedDaysOrBlocks / 20) * 100));
+    });
+
+    const activeSpacesCount = mySpaces.filter((s) => s.status === 'active').length;
+    const pendingSpacesCount = mySpaces.filter((s) => s.status === 'pending_approval').length;
+    const operationalPct =
+      mySpaces.length > 0 ? Math.round((activeSpacesCount / mySpaces.length) * 100) : 0;
+
+    const totalAvailableDays = Math.max(1, activeSpacesCount * 20);
+    const realOccupancyPct = Math.min(
+      100,
+      Math.round((totalBookedUnits / totalAvailableDays) * 100)
+    );
+
     const netPayout = grossIncome - platformFeesPaid;
-    return { grossIncome, platformFeesPaid, depositsHeld, netPayout, confirmedCount };
-  }, [myReceivedBookings]);
+    return {
+      grossIncome,
+      platformFeesPaid,
+      depositsHeld,
+      netPayout,
+      confirmedCount,
+      totalBookedUnits,
+      activeSpacesCount,
+      pendingSpacesCount,
+      operationalPct,
+      realOccupancyPct,
+      bySpace,
+      spaceBreakdownList: Object.values(bySpace),
+    };
+  }, [myReceivedBookings, mySpaces, todayIso]);
 
   const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -653,8 +766,8 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
     const booking = myReceivedBookings.find(
       (b) => b.spaceId === selectedSpace.id && b.startDate <= dateString && b.endDate >= dateString
     );
-    const visit = visitRequests.find(
-      (v) => v.spaceId === selectedSpace.id && v.visitDate === dateString && v.ownerId === currentUser?.id
+    const visit = upcomingVisitRequests.find(
+      (v) => v.spaceId === selectedSpace.id && v.visitDate === dateString
     );
     const maintenance = maintenanceBlocks.find(
       (m) => m.spaceId === selectedSpace.id && m.date === dateString
@@ -757,10 +870,10 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 shrink-0 w-full lg:w-auto">
           <button
             onClick={() => setActiveTab('finances')}
-            className="px-4 py-2.5 rounded-2xl font-bold text-xs border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl font-bold text-xs border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
             title="Configuración de cuentas bancarias y liquidaciones"
           >
             <Settings className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -776,7 +889,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
               }
               setIsPublishModalOpen(true);
             }}
-            className={`px-5 py-2.5 rounded-2xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`w-full sm:w-auto px-5 py-2.5 rounded-2xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
               currentUser.verificationStatus === 'verified'
                 ? 'bg-rose-600 hover:bg-rose-700 text-white hover:shadow'
                 : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
@@ -788,26 +901,31 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         </div>
       </div>
 
-      {/* Tarjetas de Métricas Rápidas (KPIs estilo imagen de referencia) */}
+      {/* Tarjetas de Métricas Reales (Calculadas dinámicamente de los espacios y reservas reales) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Espacios Publicados */}
+        {/* Card 1: Espacios Publicados (Datos Reales) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
             <span>ESPACIOS PUBLICADOS</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              100% operativos
+              {financialMetrics.activeSpacesCount} de {mySpaces.length} activos ({financialMetrics.operationalPct}%)
             </span>
           </div>
           <div>
             <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{mySpaces.length}</div>
-            <p className="text-[11px] text-slate-400 mt-1 truncate">
-              {mySpaces.map(s => s.commune).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || 'Providencia · Bellas Artes'}
+            <p className="text-[11px] text-slate-500 mt-1 truncate">
+              {mySpaces.map((s) => s.commune).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || 'Sin recintos publicados'}
             </p>
+            {financialMetrics.pendingSpacesCount > 0 && (
+              <p className="text-[10px] text-amber-700 font-semibold mt-0.5">
+                • {financialMetrics.pendingSpacesCount} en moderación del Administrador
+              </p>
+            )}
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <button
               onClick={() => setActiveTab('spaces')}
-              className="text-rose-600 hover:text-rose-700 font-bold text-[11px] flex items-center gap-1"
+              className="text-rose-600 hover:text-rose-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
             >
               <span>Gestionar</span>
               <span>→</span>
@@ -815,7 +933,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </div>
         </div>
 
-        {/* Card 2: Solicitudes Pendientes */}
+        {/* Card 2: Solicitudes Pendientes (Datos Reales) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
             <span>SOLICITUDES POR APROBAR</span>
@@ -828,12 +946,14 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
               {pendingValidBookings.length}
             </div>
             <p className="text-[11px] text-amber-700 font-medium mt-1">
-              Reservas vigentes listas para revisión
+              {selectedSpace
+                ? `${pendingValidBookings.filter((b) => b.spaceId === selectedSpace.id).length} en ${selectedSpace.title}`
+                : 'Reservas vigentes listas para revisión'}
             </p>
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <button
-              onClick={() => setActiveTab('calendar')}
+              onClick={() => setActiveTab('bookings')}
               className="text-rose-600 hover:text-rose-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
             >
               <span>Revisar Ahora</span>
@@ -842,55 +962,65 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </div>
         </div>
 
-        {/* Card 3: Ingreso Neto Mes */}
+        {/* Card 3: Ganancias Reales (CLP) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>INGRESO NETO MES (CLP)</span>
+            <span>GANANCIA NETA REAL (CLP)</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              ↗ +14.2% vs. Agosto
+              {financialMetrics.confirmedCount} confirmadas
             </span>
           </div>
           <div>
             <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {formatClp(financialMetrics.netPayout || 798000)}
+              {formatClp(financialMetrics.netPayout)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Liquidación: 30 Sep en Banco de Chile
+            <p className="text-[11px] text-emerald-800 font-semibold mt-1 truncate">
+              {selectedSpace && financialMetrics.bySpace[selectedSpace.id]
+                ? `${selectedSpace.title}: ${formatClp(financialMetrics.bySpace[selectedSpace.id].netPayout)}`
+                : `Bruto: ${formatClp(financialMetrics.grossIncome)}`}
             </p>
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <button
               onClick={() => setActiveTab('finances')}
-              className="text-rose-600 hover:text-rose-700 font-bold text-[11px] flex items-center gap-1"
+              className="text-rose-600 hover:text-rose-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
             >
-              <span>Ver Detalle</span>
+              <span>Ver Ganancias por Lugar</span>
               <span>→</span>
             </button>
           </div>
         </div>
 
-        {/* Card 4: Tasa de Ocupación */}
+        {/* Card 4: Tasa de Ocupación Real */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>TASA DE OCUPACIÓN</span>
+            <span>TASA DE OCUPACIÓN REAL</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              • 4 Activas
+              • {financialMetrics.confirmedCount} Reservas
             </span>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-slate-900 tracking-tight">78%</div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Ley 18.101 Contratos Digitales
+            <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              {selectedSpace && financialMetrics.bySpace[selectedSpace.id]
+                ? `${financialMetrics.bySpace[selectedSpace.id].occupancyPct}%`
+                : `${financialMetrics.realOccupancyPct}%`}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 truncate">
+              {selectedSpace && financialMetrics.bySpace[selectedSpace.id]
+                ? `${financialMetrics.bySpace[selectedSpace.id].confirmedCount} reservas en ${selectedSpace.title}`
+                : `${financialMetrics.totalBookedUnits} jornadas reservadas en total`}
             </p>
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-400 text-[11px]">Al día</span>
+            <span className="text-slate-500 text-[11px] font-medium">
+              Total cartera: {financialMetrics.realOccupancyPct}%
+            </span>
           </div>
         </div>
       </div>
 
       {/* Pestañas del Dashboard */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('calendar')}
           className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
@@ -948,7 +1078,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           }`}
         >
           <MapPin className="w-4 h-4" />
-          Visitas Técnicas ({visitRequests.filter(v => v.ownerId === currentUser.id).length})
+          Visitas Técnicas ({upcomingVisitRequests.length})
         </button>
       </div>
 
@@ -1259,6 +1389,15 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        <button
+                          onClick={() => downloadReservationDocument(res)}
+                          className="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          title="Descargar comprobante de reserva"
+                        >
+                          <Download className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Descargar Reserva</span>
+                        </button>
+
                         {/* Botón para ver el contrato legal digital siempre accesible */}
                         <button
                           onClick={() => handleViewReservationContract(res)}
@@ -1266,7 +1405,45 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                           title="Ver y revisar el contrato legal digital (Ley 18.101 & 19.799)"
                         >
                           <FileText className="w-4 h-4 text-rose-600" />
-                          <span>Ver Contrato Digital</span>
+                          <span>Ver Contrato</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const existing = contracts.find(
+                              (c) => c.id === res.digitalContractId || c.reservationId === res.id
+                            );
+                            if (existing) {
+                              downloadContractDocument(existing);
+                              return;
+                            }
+                            const generated = generateDigitalContract({
+                              reservationId: res.id,
+                              spaceTitle: res.spaceTitle,
+                              spaceAddress: res.spaceAddress,
+                              tenantName: res.tenantName,
+                              tenantRut: res.tenantRut,
+                              ownerName: res.ownerName,
+                              ownerRut: res.ownerRut || currentUser?.rut || '14.258.963-7',
+                              totalClp: res.totalClp,
+                              guaranteeDepositClp: res.securityDepositClp,
+                              startDate: res.startDate,
+                              endDate: res.endDate,
+                              ip: '200.89.68.114',
+                              priceUnit: res.priceUnit || 'day',
+                              rentalModality: res.rentalModality || 'por_dia',
+                              durationUnits: res.durationUnits || res.totalDays || 1,
+                              hourStart: res.hourStart,
+                              hourEnd: res.hourEnd,
+                              intendedUse: res.intendedUse,
+                            });
+                            downloadContractDocument(generated);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          title="Descargar contrato digital"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Descargar Contrato</span>
                         </button>
 
                         <button
@@ -1335,46 +1512,110 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
         </div>
       )}
 
-      {/* Pestaña: Métricas Financieras */}
+      {/* Pestaña: Métricas Financieras Reales por Lugar */}
       {activeTab === 'finances' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-xs">
-            <h3 className="text-base font-bold text-slate-900">
-              Desglose de Ingresos y Liquidaciones (CLP)
-            </h3>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-xs">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Desglose Real de Ganancias y Liquidaciones (CLP)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Calculado directamente a partir de tus {financialMetrics.confirmedCount} reservas confirmadas.
+                </p>
+              </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                <span className="text-xs text-slate-600">Total Facturación Bruta Arriendos</span>
-                <span className="text-sm font-bold text-slate-900">{formatClp(financialMetrics.grossIncome)}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                <span className="text-xs text-slate-600">Comisión Spotly retenida (5%)</span>
-                <span className="text-sm font-bold text-rose-600">-{formatClp(financialMetrics.platformFeesPaid)}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                <span className="text-xs text-slate-600">Garantías de Arrendatarios en Custodia</span>
-                <span className="text-sm font-bold text-indigo-600">{formatClp(financialMetrics.depositsHeld)}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <div>
-                  <span className="text-xs font-bold text-emerald-950 block">Monto Neto a Transferir a Cuenta Bancaria</span>
-                  <span className="text-[11px] text-emerald-700">Liquidación automática vía transferencia interbancaria chilena</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-600">
+                    Total Facturación Bruta Arriendos ({financialMetrics.confirmedCount} reservas confirmadas)
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">{formatClp(financialMetrics.grossIncome)}</span>
                 </div>
-                <span className="text-xl font-extrabold text-emerald-700">{formatClp(financialMetrics.netPayout)}</span>
+                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-600">Comisión Spotly retenida (5%)</span>
+                  <span className="text-sm font-bold text-rose-600">-{formatClp(financialMetrics.platformFeesPaid)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-600">Garantías de Arrendatarios en Custodia</span>
+                  <span className="text-sm font-bold text-indigo-600">{formatClp(financialMetrics.depositsHeld)}</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-950 block">Ganancia Neta Real Acumulada</span>
+                    <span className="text-[11px] text-emerald-700">Suma neta real de todos tus lugares arrendados</span>
+                  </div>
+                  <span className="text-xl font-extrabold text-emerald-700">{formatClp(financialMetrics.netPayout)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900">Régimen Tributario & Cumplimiento</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                De acuerdo con la Circular N° 37 del SII y la Ley 18.101, los arriendos de inmuebles amoblados o con instalaciones que permitan el ejercicio de una actividad comercial están afectos al Impuesto al Valor Agregado (IVA - 19%).
+              </p>
+              <div className="p-3.5 bg-slate-50 rounded-2xl text-xs space-y-1 text-slate-700">
+                <div className="font-bold text-slate-900">Emisión de Boleta/Factura:</div>
+                <div>RUT Emisor: {formatRut(currentUser.rut)}</div>
+                <div>Titular: {currentUser.fullName}</div>
               </div>
             </div>
           </div>
 
+          {/* Desglose Real por cada Lugar del Propietario */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900">Régimen Tributario & Cumplimiento</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              De acuerdo con la Circular N° 37 del SII y la Ley 18.101, los arriendos de inmuebles amoblados o con instalaciones que permitan el ejercicio de una actividad comercial están afectos al Impuesto al Valor Agregado (IVA - 19%).
-            </p>
-            <div className="p-3.5 bg-slate-50 rounded-2xl text-xs space-y-1 text-slate-700">
-              <div className="font-bold text-slate-900">Emisión de Boleta/Factura:</div>
-              <div>RUT Emisor: {formatRut(currentUser.rut)}</div>
-              <div>Mandato de Cobro: Spotly SpA (77.892.310-4)</div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Ganancias Reales por Lugar / Recinto
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Ingresos reales generados por cada uno de tus espacios según sus reservas confirmadas.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {financialMetrics.spaceBreakdownList.map((spMetric) => (
+                <div
+                  key={spMetric.spaceId}
+                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3 flex flex-col justify-between"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">{spMetric.spaceTitle}</h4>
+                      <p className="text-[11px] text-slate-500">
+                        {spMetric.commune} • {spMetric.confirmedCount} reservas confirmadas
+                        {spMetric.pendingCount > 0 ? ` • ${spMetric.pendingCount} por aprobar` : ''}
+                      </p>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        spMetric.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {spMetric.status === 'active' ? 'Activo' : 'En Moderación'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Bruto</span>
+                      <span className="font-bold text-slate-800">{formatClp(spMetric.grossIncome)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Comisión (5%)</span>
+                      <span className="font-bold text-rose-600">-{formatClp(spMetric.platformFeesPaid)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Ganancia Neta</span>
+                      <span className="font-extrabold text-emerald-700">{formatClp(spMetric.netPayout)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1761,7 +2002,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
               </div>
             </div>
 
-            {/* Card 2: Visitas Técnicas (Scouting) */}
+            {/* Card 2: Visitas Técnicas (Scouting) - Solo vigentes de hoy en adelante */}
             <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-xs">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -1770,18 +2011,22 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900">Visitas Técnicas (Scouting)</h3>
-                    <p className="text-[10px] text-slate-500">Inspecciones previas al rodaje o evento</p>
+                    <p className="text-[10px] text-slate-500">Vigentes desde hoy ({todayIso}) en adelante</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  {visitRequests.filter(v => v.ownerId === currentUser.id).length} Agendada
+                  {upcomingVisitRequests.length} {upcomingVisitRequests.length === 1 ? 'Agendada' : 'Agendadas'}
                 </span>
               </div>
 
               <div className="space-y-2.5">
-                {visitRequests
-                  .filter((v) => v.ownerId === currentUser.id)
-                  .map((visit) => (
+                {upcomingVisitRequests.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 text-xs bg-slate-50/70 rounded-2xl border border-slate-100">
+                    <Users className="w-7 h-7 mx-auto mb-1.5 text-slate-300" />
+                    No hay visitas técnicas pendientes desde hoy en adelante. Las visitas con fecha pasada se ocultan automáticamente.
+                  </div>
+                ) : (
+                  upcomingVisitRequests.map((visit) => (
                     <div
                       key={visit.id}
                       className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs"
@@ -1807,18 +2052,26 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                       )}
                       <div className="pt-1 flex items-center gap-2">
                         <button
-                          onClick={() => alert(`Contactar a ${visit.tenantName} vía WhatsApp al ${visit.tenantPhone || '+56 9 8765 4321'}`)}
+                          onClick={() =>
+                            setContactModalTenant({
+                              name: visit.tenantName,
+                              phone: visit.tenantPhone || '+56 9 8765 4321',
+                              email: visit.tenantEmail,
+                              spaceTitle: visit.spaceTitle,
+                            })
+                          }
                           className="flex-1 py-1.5 px-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-[10px] text-center transition cursor-pointer"
                         >
                           Contactar por WhatsApp
                         </button>
                       </div>
                     </div>
-                  ))}
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Card 3: Últimas Liquidaciones */}
+            {/* Card 3: Ganancias Reales por Lugar */}
             <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-xs">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -1826,45 +2079,48 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
                     <Banknote className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">Últimas Liquidaciones</h3>
-                    <p className="text-[10px] text-slate-500">Transferencias a cuenta Banco de Chile</p>
+                    <h3 className="text-xs font-bold text-slate-900">Ganancias Reales por Lugar</h3>
+                    <p className="text-[10px] text-slate-500">Ingresos netos reales según reservas confirmadas</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setActiveTab('finances')}
                   className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
                 >
-                  Ver Historial
+                  Ver Detalle
                 </button>
               </div>
 
               <div className="space-y-2.5 divide-y divide-slate-100">
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <div>
-                    <p className="font-bold text-slate-900">Transferencia Webpay Spotly</p>
-                    <p className="text-[10px] text-slate-400">31 de Agosto 2026 • ID #84920</p>
-                  </div>
-                  <span className="font-extrabold text-emerald-700">CLP 698.800</span>
-                </div>
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <div>
-                    <p className="font-bold text-slate-900">Transferencia Webpay Spotly</p>
-                    <p className="text-[10px] text-slate-400">31 de Julio 2026 • ID #79114</p>
-                  </div>
-                  <span className="font-extrabold text-emerald-700">CLP 540.200</span>
-                </div>
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <div>
-                    <p className="font-bold text-slate-900">Transferencia Webpay Spotly</p>
-                    <p className="text-[10px] text-slate-400">30 de Junio 2026 • ID #68301</p>
-                  </div>
-                  <span className="font-extrabold text-emerald-700">CLP 480.000</span>
-                </div>
+                {financialMetrics.spaceBreakdownList.map((spMetric) => {
+                  const isCurrent = selectedSpace?.id === spMetric.spaceId;
+                  return (
+                    <div
+                      key={spMetric.spaceId}
+                      onClick={() => setSelectedSpaceId(spMetric.spaceId)}
+                      className={`pt-2.5 flex items-center justify-between text-xs cursor-pointer rounded-xl px-2 py-1.5 transition ${
+                        isCurrent ? 'bg-emerald-50/70 border border-emerald-200' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="font-bold text-slate-900 truncate">{spMetric.spaceTitle}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {spMetric.commune} • {spMetric.confirmedCount} {spMetric.confirmedCount === 1 ? 'reserva confirmada' : 'reservas confirmadas'}
+                        </p>
+                      </div>
+                      <span className="font-extrabold text-emerald-700 shrink-0">
+                        {formatClp(spMetric.netPayout)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Banco de Chile • Cta Cte ****4921 • Titular: Carlos Muñoz Echeverría</span>
+              <div className="p-3 rounded-xl bg-slate-900 text-white text-xs flex items-center justify-between">
+                <span className="font-semibold text-slate-300">Total Neto Acumulado:</span>
+                <span className="font-extrabold text-emerald-400 text-sm">
+                  {formatClp(financialMetrics.netPayout)}
+                </span>
               </div>
             </div>
           </div>
@@ -1885,12 +2141,12 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onOpenOw
           </div>
 
           {(() => {
-            const myVisits = visitRequests.filter((v) => v.ownerId === currentUser.id);
+            const myVisits = upcomingVisitRequests;
             if (myVisits.length === 0) {
               return (
                 <div className="p-12 text-center text-slate-400 text-xs">
                   <MapPin className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-                  No has recibido solicitudes de visita aún. Cuando un cliente solicite visitar uno de tus espacios, aparecerá aquí.
+                  No tienes visitas técnicas vigentes agendadas desde hoy ({todayIso}) en adelante. Las visitas de fechas pasadas se ocultan automáticamente.
                 </div>
               );
             }

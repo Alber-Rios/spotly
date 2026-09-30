@@ -39,10 +39,13 @@ export interface KycData {
   documentSerialNumber: string;
   criminalRecordSubmitted: boolean;
   criminalRecordDocCode?: string;
+  criminalRecordUrl?: string;
   criminalRecordValid?: boolean;
   manualReviewRequired?: boolean;
   manualReviewNotes?: string;
   submittedAt?: string;
+  rejectionReason?: string;
+  rejectedAt?: string;
 }
 
 export interface UserProfile {
@@ -58,6 +61,7 @@ export interface UserProfile {
   ownerTermsAccepted: boolean;
   ownerApplicationDate?: string;
   verificationStatus: VerificationStatus;
+  kycRejectionReason?: string;
   kycData?: KycData;
   createdAt: string;
   commune?: string;
@@ -234,12 +238,18 @@ export interface AuditLog {
 export interface Dispute {
   id: string;
   reservationId: string;
+  spaceId?: string;
   spaceTitle: string;
+  tenantId?: string;
   tenantName: string;
   tenantRut: string;
   ownerName: string;
   ownerRut: string;
   amountClp: number;
+  subtotalClp?: number;
+  securityDepositClp?: number;
+  platformFeeClp?: number;
+  problemCategory?: string;
   reason: string;
   status: 'pending' | 'investigating' | 'resolved_refund' | 'resolved_owner';
   createdAt: string;

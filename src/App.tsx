@@ -12,6 +12,7 @@ import { TenantReservationsPage } from './pages/TenantReservationsPage.tsx';
 import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { FavoritesPage } from './pages/FavoritesPage.tsx';
+import { SupportPage } from './pages/SupportPage.tsx';
 import { OwnerUpgradeModal } from './components/OwnerUpgradeModal.tsx';
 import { Space } from './types.ts';
 import { ShieldCheck, Building2 } from 'lucide-react';
@@ -63,7 +64,8 @@ function AppContent() {
       'owner': '/owner',
       'admin': '/admin',
       'onboarding': '/onboarding',
-      'profile': '/profile'
+      'profile': '/profile',
+      'support': '/support'
     };
     
     navigate(routes[view] || '/');
@@ -161,6 +163,13 @@ function AppContent() {
               onOpenAuth={handleOpenAuth}
             />
           } />
+
+          <Route path="/support" element={
+            <SupportPage
+              onNavigate={handleNavigate}
+              onOpenAuth={handleOpenAuth}
+            />
+          } />
         </Routes>
       </main>
 
@@ -237,7 +246,13 @@ function AppContent() {
             <div className="flex items-center gap-4">
               <span>Términos y Condiciones</span>
               <span>Privacidad de Datos</span>
-              <span>Soporte Técnico</span>
+              <button
+                type="button"
+                onClick={() => handleNavigate('support')}
+                className="text-rose-400 hover:text-rose-300 font-semibold cursor-pointer transition"
+              >
+                Ayuda y Soporte
+              </button>
             </div>
           </div>
         </div>

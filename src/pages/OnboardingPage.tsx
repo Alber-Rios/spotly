@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext.tsx';
 import { formatRut } from '../utils/formatters.ts';
 import { DocumentScanner } from '../components/DocumentScanner.tsx';
@@ -22,6 +22,8 @@ import {
   Check,
   Eye,
   Sparkles,
+  XCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface OnboardingPageProps {
@@ -32,11 +34,37 @@ interface OnboardingPageProps {
 export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOpenAuth }) => {
   const { currentUser, addAuditRecord, updateUserProfile } = useApp();
 
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const isRejected = currentUser?.verificationStatus === 'rejected';
+  const rejectionReasonText =
+    currentUser?.kycRejectionReason ||
+    currentUser?.kycData?.rejectionReason ||
+    'La documentación enviada presenta observaciones o requiere volver a capturarse con mayor nitidez.';
+
+  const hasCompletedAllSteps = Boolean(
+    currentUser &&
+      (currentUser.verificationStatus === 'pending_review' ||
+        currentUser.verificationStatus === 'rejected' ||
+        (currentUser.kycData?.idFrontCaptured &&
+          currentUser.kycData?.idBackCaptured &&
+          currentUser.kycData?.photoCaptured &&
+          currentUser.kycData?.criminalRecordSubmitted))
+  );
+
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(() =>
+    hasCompletedAllSteps ? 4 : 1
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractionProgress, setExtractionProgress] = useState(0);
   const [extractionMessage, setExtractionMessage] = useState('');
+
+  useEffect(() => {
+    if (hasCompletedAllSteps) {
+      setCurrentStep(4);
+    } else {
+      setCurrentStep(1);
+    }
+  }, [currentUser?.id, currentUser?.verificationStatus]);
 
   // PASO 1: Cédula de Identidad
   const [idFrontPhoto, setIdFrontPhoto] = useState<string | null>(null);
@@ -176,64 +204,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
     );
   }
 
-  // Si el usuario ya tiene su solicitud pendiente de revisión y no ha reiniciado el flujo
-  if (currentUser.verificationStatus === 'pending_review' && currentStep !== 4) {
-    return (
-      <div className="max-w-2xl mx-auto py-16 px-4">
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center shadow-sm space-y-6">
-          <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-3xl flex items-center justify-center mx-auto shadow-xs">
-            <Clock className="w-8 h-8 animate-pulse" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
-              Expediente en Revisión
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Tu verificación demorará aproximadamente 2 días
-            </h2>
-            <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-              Tus documentos y fotografías están en cola. <strong>Esta revisión es realizada manualmente por el Administrador de la plataforma</strong> para asegurar la validez de tu cédula, rostro y antecedentes.
-            </p>
-          </div>
-
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 max-w-md mx-auto text-left text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-amber-800">Titular Solicitante:</span>
-              <span className="font-bold text-slate-900">{currentUser.fullName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-amber-800">RUT Oficial:</span>
-              <span className="font-bold text-slate-900">{formatRut(currentUser.rut)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-amber-800">Revisor Designado:</span>
-              <span className="font-bold text-slate-900">Administrador de Spotly</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-amber-800">Tiempo Estimado:</span>
-              <span className="font-bold text-amber-900">Aprox. 2 días hábiles</span>
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={() => onNavigate('home')}
-              className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-            >
-              Explorar Espacios
-            </button>
-            <button
-              onClick={() => setCurrentStep(1)}
-              className="w-full sm:w-auto px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-            >
-              Actualizar Documentación
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Si el usuario ya completó todos los pasos, se muestra directamente el Paso 4 dentro de la vista de Verificación de Identidad con la barra de progreso y el mensaje de demora.
 
   // VALIDACIÓN PASO 1: Cédula de Identidad (Fotos requeridas)
   const handleValidateStep1 = () => {
@@ -310,6 +281,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
       // Actualizar estado del usuario con los datos extraídos por la AI
       updateUserProfile({
         verificationStatus: 'pending_review',
+        kycRejectionReason: undefined,
         avatarUrl: facialPhoto || currentUser.avatarUrl,
         kycData: {
           consentGiven: true,
@@ -325,7 +297,10 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
           criminalRecordSubmitted: true,
           criminalRecordValid: true,
           criminalRecordDocCode: criminalRecordFileName,
+          criminalRecordUrl: criminalRecordFile || undefined,
           submittedAt: new Date().toISOString(),
+          rejectionReason: undefined,
+          rejectedAt: undefined,
           manualReviewRequired: true,
           manualReviewNotes: `${kycRes.data.summary} (Proveedor: ${kycRes.provider})`,
         },
@@ -372,13 +347,15 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
             '1. Cédula de Identidad',
             '2. Reconocimiento Facial',
             '3. Antecedentes',
-            '4. Estado de Revisión',
+            '4. Estado de la Solicitud',
           ].map((title, idx) => (
             <div
               key={title}
               className={`p-2 rounded-xl transition ${
                 currentStep === idx + 1
-                  ? 'bg-slate-900 text-white shadow-xs'
+                  ? isRejected && idx === 3
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-slate-900 text-white shadow-xs'
                   : currentStep > idx + 1
                   ? 'bg-emerald-50 text-emerald-800 font-bold'
                   : 'bg-slate-100 text-slate-400'
@@ -389,6 +366,37 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
           ))}
         </div>
       </div>
+
+      {/* Banner de Aviso de Solicitud Rechazada cuando el usuario está corrigiendo los pasos 1, 2 o 3 */}
+      {isRejected && currentStep !== 4 && (
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+              <XCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-900">
+                  Estado de la Solicitud: Rechazada
+                </span>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed">
+                <strong>Motivo informado por el Administrador:</strong> "{rejectionReasonText}"
+              </p>
+              <p className="text-[11px] text-rose-700">
+                Por favor corrige y vuelve a subir los documentos solicitados a continuación para enviar una nueva solicitud.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCurrentStep(4)}
+            className="px-3.5 py-2 bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition"
+          >
+            Ver Estado de Solicitud
+          </button>
+        </div>
+      )}
 
       {/* Contenedor del Paso Activo */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
@@ -752,96 +760,182 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate, onOp
         )}
 
         {/* ========================================================= */}
-        {/* PASO 4: MENSAJE FINAL DE DEMORA (APROX. 2 DÍAS) Y REVISIÓN POR EL ADMINISTRADOR */}
+        {/* PASO 4: ESTADO DE LA SOLICITUD (EN REVISIÓN O RECHAZADA CON MOTIVO) */}
         {/* ========================================================= */}
         {currentStep === 4 && (
-          <div className="space-y-6 text-center py-4">
-            {/* Ícono de reloj y estado */}
-            <div className="w-20 h-20 rounded-3xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
-              <Clock className="w-10 h-10 animate-pulse" />
-            </div>
-
-            {/* Títulos y mensaje solicitado */}
-            <div className="space-y-2 max-w-xl mx-auto">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
-                Expediente Enviado con Éxito
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                Tu verificación demorará aproximadamente 2 días
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Hemos recibido tu documentación. <strong>Esta verificación es revisada minuciosamente por el Administrador</strong> de Spotly para cotejar tus fotos de carnet, reconocimiento facial y certificado de antecedentes.
-              </p>
-            </div>
-
-            {/* Ficha Resumen de lo Enviado */}
-            <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200 max-w-lg mx-auto text-left text-xs space-y-3 shadow-xs">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                <span className="text-slate-900 font-bold text-sm flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
-                  Detalle del Expediente de Verificación
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                  En Revisión
-                </span>
+          isRejected ? (
+            <div className="space-y-6 text-center py-4">
+              {/* Ícono de Rechazo */}
+              <div className="w-20 h-20 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm ring-4 ring-rose-50">
+                <XCircle className="w-10 h-10" />
               </div>
 
-              <div className="space-y-2.5 text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Titular Solicitante:</span>
-                  <span className="font-bold text-slate-900">{currentUser.fullName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">RUT Oficial:</span>
-                  <span className="font-bold text-slate-900">{formatRut(currentUser.rut)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Cédula de Identidad:</span>
-                  <span className="font-bold text-emerald-700">✓ Anverso y Reverso Adjuntos</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Reconocimiento Facial:</span>
-                  <span className="font-bold text-emerald-700">✓ Rostro Reconocido en Vivo</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Certificado de Antecedentes:</span>
-                  <span className="font-bold text-emerald-700">
-                    ✓ {criminalRecordFileName || 'Documento Adjunto'}
+              {/* Títulos de Estado Rechazado */}
+              <div className="space-y-2 max-w-xl mx-auto">
+                <span className="px-3.5 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300 uppercase tracking-wider">
+                  Estado de la Solicitud: Rechazada
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                  Tu solicitud de verificación fue rechazada
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  El <strong>Administrador de Spotly</strong> revisó tu expediente de identidad y registró una observación que impide aprobar tu verificación actual.
+                </p>
+              </div>
+
+              {/* Cuadro Principal con el Porqué / Motivo del Rechazo */}
+              <div className="bg-rose-50/90 rounded-3xl p-5 sm:p-6 border-2 border-rose-200 max-w-lg mx-auto text-left space-y-4 shadow-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-rose-200/80">
+                  <span className="text-rose-950 font-black text-sm flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    ¿Por qué fue rechazada tu solicitud?
+                  </span>
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-rose-600 text-white uppercase">
+                    Rechazada
                   </span>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 pt-2">
-                  <span className="text-slate-500">¿Quién revisa esto?:</span>
-                  <span className="font-bold text-indigo-900">El Administrador de la plataforma</span>
+
+                <div className="bg-white rounded-2xl p-4 border border-rose-200 space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 block">
+                    Motivo informado por el Administrador:
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-relaxed">
+                    "{rejectionReasonText}"
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tiempo de Respuesta:</span>
-                  <span className="font-bold text-amber-900">Aprox. 2 días hábiles</span>
+
+                <div className="space-y-2 text-xs text-slate-700 pt-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Titular Solicitante:</span>
+                    <span className="font-bold text-slate-900">{currentUser.fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">RUT Oficial:</span>
+                    <span className="font-bold text-slate-900">{formatRut(currentUser.rut)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Estado Actual:</span>
+                    <span className="font-bold text-rose-700">✗ Solicitud Rechazada (Requiere corrección)</span>
+                  </div>
+                  {currentUser.kycData?.rejectedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Fecha de Revisión:</span>
+                      <span className="font-semibold text-slate-800">
+                        {new Date(currentUser.kycData.rejectedAt).toLocaleDateString('es-CL')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-white/80 rounded-2xl border border-rose-200 text-[11px] text-rose-900 leading-relaxed">
+                  📌 <strong>¿Qué debes hacer ahora?:</strong> Haz clic en el botón de abajo para volver al Paso 1, corregir la observación indicada por el Administrador y enviar nuevamente tu solicitud para revisión.
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-                💡 <strong>Información para el usuario:</strong> Mientras el Administrador valida tu expediente, puedes explorar todos los espacios, ubicaciones y precios en Spotly. Una vez aprobada tu cuenta, podrás formalizar contratos y publicar propiedades.
+              {/* Botones de Acción para Reintentar */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setCurrentStep(1);
+                  }}
+                  className="w-full sm:w-auto px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Corregir Documentos y Enviar Nuevamente</span>
+                </button>
               </div>
             </div>
+          ) : (
+            <div className="space-y-6 text-center py-4">
+              {/* Ícono de reloj y estado */}
+              <div className="w-20 h-20 rounded-3xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+                <Clock className="w-10 h-10 animate-pulse" />
+              </div>
 
-            {/* Botones de navegación */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => onNavigate('home')}
-                className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-              >
-                Explorar Catálogo de Espacios
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate('profile')}
-                className="w-full sm:w-auto px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-              >
-                Ver Mi Perfil
-              </button>
+              {/* Títulos y mensaje solicitado */}
+              <div className="space-y-2 max-w-xl mx-auto">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+                  Expediente Enviado con Éxito
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                  Tu verificación demorará aproximadamente 2 días
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Hemos recibido tu documentación. <strong>Esta verificación es revisada minuciosamente por el Administrador</strong> de Spotly para cotejar tus fotos de carnet, reconocimiento facial y certificado de antecedentes.
+                </p>
+              </div>
+
+              {/* Ficha Resumen de lo Enviado */}
+              <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200 max-w-lg mx-auto text-left text-xs space-y-3 shadow-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span className="text-slate-900 font-bold text-sm flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    Detalle del Expediente de Verificación
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                    En Revisión
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 text-slate-600">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Titular Solicitante:</span>
+                    <span className="font-bold text-slate-900">{currentUser.fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">RUT Oficial:</span>
+                    <span className="font-bold text-slate-900">{formatRut(currentUser.rut)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Cédula de Identidad:</span>
+                    <span className="font-bold text-emerald-700">✓ Anverso y Reverso Adjuntos</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Reconocimiento Facial:</span>
+                    <span className="font-bold text-emerald-700">✓ Rostro Reconocido en Vivo</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Certificado de Antecedentes:</span>
+                    <span className="font-bold text-emerald-700">
+                      ✓ {criminalRecordFileName || currentUser.kycData?.criminalRecordDocCode || 'Documento Adjunto'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-200 pt-2">
+                    <span className="text-slate-500">¿Quién revisa esto?:</span>
+                    <span className="font-bold text-indigo-900">El Administrador de la plataforma</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Tiempo de Respuesta:</span>
+                    <span className="font-bold text-amber-900">Aprox. 2 días hábiles</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                  💡 <strong>Información para el usuario:</strong> Mientras el Administrador valida tu expediente, puedes explorar todos los espacios, ubicaciones y precios en Spotly. Una vez aprobada tu cuenta, podrás formalizar contratos y publicar propiedades.
+                </div>
+              </div>
+
+              {/* Botones de navegación */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('home')}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  Explorar Catálogo de Espacios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="w-full sm:w-auto px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  Actualizar Documentación
+                </button>
+              </div>
             </div>
-          </div>
+          )
         )}
       </div>
     </div>

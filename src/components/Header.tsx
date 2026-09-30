@@ -21,6 +21,8 @@ import {
   Check,
   SlidersHorizontal,
   Heart,
+  HelpCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { formatRut } from '../utils/formatters.ts';
 
@@ -126,111 +128,87 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Enlaces rápidos visibles en Tablet (md) y PC (lg) */}
             <nav className="hidden md:flex items-center gap-1">
-              <button
-                onClick={() => onNavigate('home')}
-                className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
-                  currentView === 'home' || currentView === 'space-detail'
-                    ? 'text-slate-900 bg-slate-100/90'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                Explorar Espacios
-              </button>
+              {currentUser?.role === 'admin' ? (
+                <>
+                  <button
+                    onClick={() => onNavigate('admin')}
+                    className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                      currentView === 'admin'
+                        ? 'text-indigo-700 bg-indigo-50/90'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    Panel Administrador
+                  </button>
+                  <button
+                    onClick={() => onNavigate('home')}
+                    className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                      currentView === 'home' || currentView === 'space-detail'
+                        ? 'text-slate-900 bg-slate-100/90'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    Catálogo Público
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => onNavigate('home')}
+                    className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                      currentView === 'home' || currentView === 'space-detail'
+                        ? 'text-slate-900 bg-slate-100/90'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    Explorar Espacios
+                  </button>
 
-              <button
-                onClick={() => onNavigate('favorites')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
-                  currentView === 'favorites'
-                    ? 'text-rose-600 bg-rose-50/80'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Heart
-                  className={`w-3.5 h-3.5 ${
-                    currentView === 'favorites' || favoriteSpaceIds.length > 0
-                      ? 'fill-rose-500 text-rose-500'
-                      : 'text-slate-400'
-                  }`}
-                />
-                <span>Favoritos</span>
-                {favoriteSpaceIds.length > 0 && (
-                  <span className="text-[11px] font-bold text-rose-600 tabular-nums">
-                    ({favoriteSpaceIds.length})
-                  </span>
-                )}
-              </button>
+                  {currentUser && (
+                    <button
+                      onClick={() => onNavigate('my-bookings')}
+                      className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                        currentView === 'my-bookings'
+                          ? 'text-slate-900 bg-slate-100/90'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      Mis Reservas
+                    </button>
+                  )}
 
-              {currentUser && (
-                <button
-                  onClick={() => onNavigate('my-bookings')}
-                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
-                    currentView === 'my-bookings'
-                      ? 'text-slate-900 bg-slate-100/90'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  Mis Reservas
-                </button>
-              )}
+                  {currentUser && (currentUser.role === 'owner' || currentUser.ownerTermsAccepted) && (
+                    <button
+                      onClick={() => onNavigate('owner')}
+                      className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                        currentView === 'owner'
+                          ? 'text-rose-600 bg-rose-50/80'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      Panel Propietario
+                    </button>
+                  )}
 
-              {currentUser && (currentUser.role === 'owner' || currentUser.ownerTermsAccepted) && (
-                <button
-                  onClick={() => onNavigate('owner')}
-                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
-                    currentView === 'owner'
-                      ? 'text-rose-600 bg-rose-50/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  Panel Propietario
-                </button>
-              )}
-
-              {currentUser && currentUser.role === 'admin' && (
-                <button
-                  onClick={() => onNavigate('admin')}
-                  className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
-                    currentView === 'admin'
-                      ? 'text-indigo-600 bg-indigo-50/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  Panel Gobierno
-                </button>
+                  {currentUser && (
+                    <button
+                      onClick={() => onNavigate('support')}
+                      className={`px-3.5 py-2 rounded-xl text-xs lg:text-sm font-semibold transition cursor-pointer ${
+                        currentView === 'support'
+                          ? 'text-rose-600 bg-rose-50/80'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      Ayuda y Soporte
+                    </button>
+                  )}
+                </>
               )}
             </nav>
           </div>
 
           {/* Acciones Derecha */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Botón Rápido de Favoritos en Móvil */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowUserMenu(false);
-                setShowNotifications(false);
-                onNavigate('favorites');
-              }}
-              className={`md:hidden relative w-10 h-10 flex items-center justify-center rounded-full border transition cursor-pointer ${
-                currentView === 'favorites'
-                  ? 'bg-rose-50 border-rose-200 text-rose-600'
-                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-rose-600 hover:bg-slate-50'
-              }`}
-              aria-label="Mis Favoritos"
-              title="Mis Favoritos"
-            >
-              <Heart
-                className={`w-[18px] h-[18px] ${
-                  favoriteSpaceIds.length > 0 ? 'fill-rose-500 text-rose-500' : ''
-                }`}
-              />
-              {favoriteSpaceIds.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white tabular-nums">
-                  {favoriteSpaceIds.length}
-                </span>
-              )}
-            </button>
-
             {/* CASO 1: USUARIO NO REGISTRADO (Visitante) */}
             {!currentUser ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -479,7 +457,27 @@ export const Header: React.FC<HeaderProps> = ({
 
                           {/* 2. Tarjeta de Acción Principal (Propietario / Publicar / Admin) */}
                           <div className="p-2.5 sm:p-3 bg-white">
-                            {currentUser.role === 'tenant' && !currentUser.ownerTermsAccepted ? (
+                            {currentUser.role === 'admin' ? (
+                              <button
+                                onClick={() => handleMenuNavigate('admin')}
+                                className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition group cursor-pointer text-left"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-indigo-100" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="block text-xs sm:text-sm font-bold leading-snug truncate">
+                                      Panel Administrador
+                                    </span>
+                                    <span className="block text-[11px] text-indigo-100 truncate">
+                                      Comparación KYC, certificados y moderación
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                              </button>
+                            ) : currentUser.role === 'tenant' && !currentUser.ownerTermsAccepted ? (
                               <button
                                 onClick={() => {
                                   setShowUserMenu(false);
@@ -526,168 +524,220 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                                 <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
                               </button>
-                            ) : currentUser.role === 'admin' ? (
-                              <button
-                                onClick={() => handleMenuNavigate('admin')}
-                                className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition group cursor-pointer text-left"
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                                    <ShieldCheck className="w-4 h-4 text-indigo-100" />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <span className="block text-xs sm:text-sm font-bold leading-snug truncate">
-                                      Panel Administrador
-                                    </span>
-                                    <span className="block text-[11px] text-indigo-100 truncate">
-                                      Auditoría KYC y gobierno de plataforma
-                                    </span>
-                                  </div>
-                                </div>
-                                <ChevronRight className="w-4 h-4 shrink-0 text-white/80 group-hover:translate-x-0.5 transition-transform" />
-                              </button>
                             ) : null}
                           </div>
 
-                          {/* 3. Navegación Principal con Estados Activos y Targets Táctiles Amplios */}
-                          <div className="p-2 space-y-0.5">
-                            <button
-                              onClick={() => handleMenuNavigate('home')}
-                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
-                                currentView === 'home' || currentView === 'space-detail'
-                                  ? 'bg-rose-50/70 text-rose-900'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                          {/* 3. Navegación Principal según Rol */}
+                          {currentUser.role === 'admin' ? (
+                            <div className="p-2 space-y-0.5">
+                              <button
+                                onClick={() => handleMenuNavigate(' home'.trim())}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
                                   currentView === 'home' || currentView === 'space-detail'
-                                    ? 'bg-rose-100 text-rose-600'
-                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                    ? 'bg-indigo-50/70 text-indigo-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
                                 }`}
                               >
-                                <Search className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
-                                  Explorar Espacios
-                                </span>
-                                <span className="block text-[11px] text-slate-400 truncate">
-                                  Catálogo de oficinas, estudios y salas
-                                </span>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
-                            </button>
-
-                            <button
-                              onClick={() => handleMenuNavigate('favorites')}
-                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
-                                currentView === 'favorites'
-                                  ? 'bg-rose-50/70 text-rose-900'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
-                                  currentView === 'favorites'
-                                    ? 'bg-rose-100 text-rose-600'
-                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
-                                }`}
-                              >
-                                <Heart
-                                  className={`w-4 h-4 ${
-                                    favoriteSpaceIds.length > 0 ? 'fill-rose-500 text-rose-500' : ''
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentView === 'home' || currentView === 'space-detail'
+                                      ? 'bg-indigo-100 text-indigo-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600'
                                   }`}
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
-                                    Mis Favoritos
+                                >
+                                  <Search className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    Catálogo Público
                                   </span>
-                                  {favoriteSpaceIds.length > 0 && (
-                                    <span className="text-xs font-bold text-rose-600 tabular-nums">
-                                      · {favoriteSpaceIds.length}
+                                  <span className="block text-[11px] text-slate-400 truncate">
+                                    Supervisar recintos publicados en plataforma
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="p-2 space-y-0.5">
+                              <button
+                                onClick={() => handleMenuNavigate('home')}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                  currentView === 'home' || currentView === 'space-detail'
+                                    ? 'bg-rose-50/70 text-rose-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentView === 'home' || currentView === 'space-detail'
+                                      ? 'bg-rose-100 text-rose-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                  }`}
+                                >
+                                  <Search className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    Explorar Espacios
+                                  </span>
+                                  <span className="block text-[11px] text-slate-400 truncate">
+                                    Catálogo de oficinas, estudios y salas
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+
+                              <button
+                                onClick={() => handleMenuNavigate('favorites')}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                  currentView === 'favorites'
+                                    ? 'bg-rose-50/70 text-rose-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentView === 'favorites'
+                                      ? 'bg-rose-100 text-rose-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                  }`}
+                                >
+                                  <Heart
+                                    className={`w-4 h-4 ${
+                                      favoriteSpaceIds.length > 0 ? 'fill-rose-500 text-rose-500' : ''
+                                    }`}
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                      Mis Favoritos
                                     </span>
+                                    {favoriteSpaceIds.length > 0 && (
+                                      <span className="text-xs font-bold text-rose-600 tabular-nums">
+                                        · {favoriteSpaceIds.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="block text-[11px] text-slate-400 truncate">
+                                    Lugares guardados para comparar y reservar
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+
+                              <button
+                                onClick={() => handleMenuNavigate('my-bookings')}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                  currentView === 'my-bookings'
+                                    ? 'bg-rose-50/70 text-rose-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentView === 'my-bookings'
+                                      ? 'bg-rose-100 text-rose-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                  }`}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    Mis Reservas
+                                  </span>
+                                  <span className="block text-[11px] text-slate-400 truncate">
+                                    Arriendos activos y contratos digitales
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+
+                              <button
+                                onClick={() => handleMenuNavigate('onboarding')}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                  currentView === 'onboarding'
+                                    ? 'bg-emerald-50/70 text-emerald-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentUser.verificationStatus === 'verified'
+                                      ? 'bg-emerald-50 text-emerald-600'
+                                      : currentUser.verificationStatus === 'rejected'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : currentUser.verificationStatus === 'pending_review'
+                                      ? 'bg-amber-50 text-amber-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600'
+                                  }`}
+                                >
+                                  {currentUser.verificationStatus === 'pending_review' ? (
+                                    <Clock className="w-4 h-4" />
+                                  ) : currentUser.verificationStatus === 'rejected' ? (
+                                    <AlertCircle className="w-4 h-4" />
+                                  ) : (
+                                    <UserCheck className="w-4 h-4" />
                                   )}
                                 </div>
-                                <span className="block text-[11px] text-slate-400 truncate">
-                                  Lugares guardados para comparar y reservar
-                                </span>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
-                            </button>
-
-                            <button
-                              onClick={() => handleMenuNavigate('my-bookings')}
-                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
-                                currentView === 'my-bookings'
-                                  ? 'bg-rose-50/70 text-rose-900'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
-                                  currentView === 'my-bookings'
-                                    ? 'bg-rose-100 text-rose-600'
-                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
-                                }`}
-                              >
-                                <FileText className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
-                                  Mis Reservas
-                                </span>
-                                <span className="block text-[11px] text-slate-400 truncate">
-                                  Arriendos activos y contratos digitales
-                                </span>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
-                            </button>
-
-                            <button
-                              onClick={() => handleMenuNavigate('onboarding')}
-                              className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
-                                currentView === 'onboarding'
-                                  ? 'bg-emerald-50/70 text-emerald-900'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
-                                  currentUser.verificationStatus === 'verified'
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : currentUser.verificationStatus === 'pending_review'
-                                    ? 'bg-amber-50 text-amber-600'
-                                    : 'bg-slate-100/80 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600'
-                                }`}
-                              >
-                                {currentUser.verificationStatus === 'pending_review' ? (
-                                  <Clock className="w-4 h-4" />
-                                ) : (
-                                  <UserCheck className="w-4 h-4" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                <div className="flex-1 min-w-0 text-left">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-sm font-semibold truncate ${
+                                      currentUser.verificationStatus === 'rejected'
+                                        ? 'text-rose-700'
+                                        : 'text-slate-800 group-hover:text-slate-900'
+                                    }`}>
+                                      {currentUser.verificationStatus === 'verified'
+                                        ? 'Verificación OK'
+                                        : currentUser.verificationStatus === 'rejected'
+                                        ? 'Verificación Rechazada'
+                                        : currentUser.verificationStatus === 'pending_review'
+                                        ? 'Verificación en Revisión'
+                                        : 'Verificar Mi Cuenta'}
+                                    </span>
+                                  </div>
+                                  <span className="block text-[11px] text-slate-400 truncate">
                                     {currentUser.verificationStatus === 'verified'
-                                      ? 'Verificación OK'
-                                      : currentUser.verificationStatus === 'pending_review'
-                                      ? 'Verificación en Revisión'
-                                      : 'Verificar Mi Cuenta'}
+                                      ? 'Identidad biométrica y cédula al día'
+                                      : currentUser.verificationStatus === 'rejected'
+                                      ? 'Revisa el motivo del rechazo y corrige'
+                                      : 'Validación de cédula chilena y biometría'}
                                   </span>
                                 </div>
-                                <span className="block text-[11px] text-slate-400 truncate">
-                                  {currentUser.verificationStatus === 'verified'
-                                    ? 'Identidad biométrica y cédula al día'
-                                    : 'Validación de cédula chilena y biometría'}
-                                </span>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
-                            </button>
-                          </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+
+                              <button
+                                onClick={() => handleMenuNavigate('support')}
+                                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition group cursor-pointer ${
+                                  currentView === 'support'
+                                    ? 'bg-rose-50/70 text-rose-900'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition ${
+                                    currentView === 'support'
+                                      ? 'bg-rose-100 text-rose-600'
+                                      : 'bg-slate-100/80 text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
+                                  }`}
+                                >
+                                  <HelpCircle className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <span className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+                                    Ayuda y Soporte
+                                  </span>
+                                  <span className="block text-[11px] text-slate-400 truncate">
+                                    Reportar problemas del lugar y disputas
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 transition" />
+                              </button>
+                            </div>
+                          )}
 
                           {/* 4. Selector Demo Multi-Rol */}
                           <div className="p-2">

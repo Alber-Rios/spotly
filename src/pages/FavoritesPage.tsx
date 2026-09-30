@@ -31,7 +31,7 @@ export const FavoritesPage: React.FC<FavoritesPageProps> = ({
   onNavigate,
   onSelectSpace,
 }) => {
-  const { spaces, favoriteSpaceIds, clearFavorites } = useApp();
+  const { currentUser, spaces, favoriteSpaceIds, clearFavorites } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<'all' | SpaceCategory>('all');
   const [sortBy, setSortBy] = useState<'saved' | 'price_asc' | 'rating_desc'>('saved');
 
@@ -61,6 +61,44 @@ export const FavoritesPage: React.FC<FavoritesPageProps> = ({
       .filter((s) => s.status === 'active' && !favoriteSpaceIds.includes(s.id))
       .slice(0, 3);
   }, [spaces, favoriteSpaceIds]);
+
+  if (!currentUser) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4">
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center shadow-lg space-y-6">
+          <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-xs">
+            <Heart className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
+              Inicia sesión para ver tus favoritos
+            </h2>
+            <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+              La lista de espacios favoritos está disponible exclusivamente para usuarios registrados en Spotly Chile.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate('login')}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('register')}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Registrarte Gratis
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">

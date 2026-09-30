@@ -68,9 +68,19 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
   maintenanceBlocks = [],
   onRemoveMaintenance,
 }) => {
-  const { reservations } = useApp();
+  const { reservations, allUsers } = useApp();
   const todayIso = useMemo(() => getTodayIso(), []);
   const availableModalities = useMemo(() => getSpaceAvailableModalities(space), [space]);
+
+  const getTenantPhone = (r: Reservation): string => {
+    const matched = allUsers.find(
+      (u) =>
+        u.id === r.tenantId ||
+        (u.rut && r.tenantRut && u.rut.replace(/\D/g, '') === r.tenantRut.replace(/\D/g, '')) ||
+        (u.email && r.tenantEmail && u.email.toLowerCase() === r.tenantEmail.toLowerCase())
+    );
+    return matched?.phone || '+56 9 9123 4567';
+  };
 
   // Modalidades soportadas por el espacio
   const supportsHourly = availableModalities.includes('por_hora');
@@ -166,6 +176,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
       id: string;
       tenantName?: string;
       tenantEmail?: string;
+      tenantPhone?: string;
       tenantRut?: string;
       subtotalClp?: number;
       reservation?: Reservation;
@@ -174,6 +185,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
     // Buscar reservas que cubran esta fecha
     for (const r of spaceReservations) {
       if (dateToCheck >= r.startDate && dateToCheck <= r.endDate) {
+        const tenantPhone = getTenantPhone(r);
         if (r.rentalModality === 'por_hora') {
           const startH = r.hourStart ?? 9;
           const endH = r.hourEnd ?? (startH + (r.durationUnits || 4));
@@ -185,6 +197,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
               id: r.id,
               tenantName: r.tenantName,
               tenantEmail: r.tenantEmail,
+              tenantPhone,
               tenantRut: r.tenantRut,
               subtotalClp: r.subtotalClp,
               reservation: r,
@@ -200,6 +213,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
               id: r.id,
               tenantName: r.tenantName,
               tenantEmail: r.tenantEmail,
+              tenantPhone,
               tenantRut: r.tenantRut,
               subtotalClp: r.subtotalClp,
               reservation: r,
@@ -213,9 +227,9 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
       const nextH = h + 1;
       const isOccupied = occupiedMap.has(h);
       const occupiedInfo = occupiedMap.get(h);
-      const isSelected = !isPastDate && h >= selectedHourStart && h < selectedHourEnd;
-      const isStart = !isPastDate && h === selectedHourStart;
-      const isEnd = !isPastDate && h === selectedHourEnd - 1;
+      const isSelected = !isOwnerView && !isPastDate && !isOccupied && h >= selectedHourStart && h < selectedHourEnd;
+      const isStart = !isOwnerView && !isPastDate && !isOccupied && h === selectedHourStart;
+      const isEnd = !isOwnerView && !isPastDate && !isOccupied && h === selectedHourEnd - 1;
 
       return {
         hour: h,
@@ -254,7 +268,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
       uniqueBookings,
       dayEarningsClp,
     };
-  }, [activeModality, startDate, todayIso, spaceReservations, OPERATING_HOURS, selectedHourStart, selectedHourEnd]);
+  }, [activeModality, startDate, todayIso, spaceReservations, OPERATING_HOURS, selectedHourStart, selectedHourEnd, isOwnerView, allUsers]);
 
   // Cinta de días para por_hora y por_dia
   const daysStrip = useMemo(() => {
@@ -677,7 +691,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
 
               {/* VISTA 1: CINTA DE DÍAS */}
               {viewMode === 'strip' && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                   {daysStrip.map((day) => {
                     const isSelected = day.isSelected;
                     const isPastForUser = !isOwnerView && day.isPast;
@@ -861,7 +875,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
             </div>
 
             {/* 1.2 DESGLOSE HORA POR HORA (08:00 a 22:00) */}
-            <div className="bg-slate-50/70 p-5 rounded-3xl border border-slate-200 space-y-4">
+            <div className="bg-slate-50/70 p-3.5 sm:p-5 rounded-3xl border border-slate-200 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -919,6 +933,125 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                   <span>
                     <strong>Consulta de Historial Pasado:</strong> Estás visualizando una fecha anterior a hoy ({todayIso}). Puedes revisar los contratos y arriendos realizados, pero no se permite bloquear ni realizar modificaciones en fechas pasadas.
                   </span>
+                </div>
+              )}
+
+              {/* DETALLE DE SOLICITUDES Y ARRENDATARIOS DEL DÍA (MODO PROPIETARIO) */}
+              {isOwnerView && dayScheduleData.uniqueBookings.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Solicitudes y Arrendatarios en esta Fecha ({dayScheduleData.uniqueBookings.length})</span>
+                    </span>
+                    <span className="text-xs font-extrabold text-emerald-700">
+                      Subtotal del día: {formatClp(dayScheduleData.dayEarningsClp)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {dayScheduleData.uniqueBookings.map((booking) => {
+                      const tPhone = getTenantPhone(booking);
+                      const isPending = booking.status === 'pending';
+                      return (
+                        <div
+                          key={booking.id}
+                          className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xs space-y-3 ${
+                            isPending
+                              ? 'bg-amber-50/90 border-amber-300'
+                              : 'bg-white border-rose-200'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                  isPending
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                }`}
+                              >
+                                {isPending ? '⚡ Solicitud por Aprobar' : '✓ Reserva Confirmada'}
+                              </span>
+                              <span className="text-xs font-extrabold text-slate-900">
+                                Horario: {String(booking.hourStart ?? 10).padStart(2, '0')}:00 a {String(booking.hourEnd ?? 16).padStart(2, '0')}:00 hrs ({booking.durationUnits || 6} hrs)
+                              </span>
+                            </div>
+                            <span className="text-sm font-black text-emerald-700">
+                              {formatClp(booking.subtotalClp)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl bg-white border border-slate-200 text-xs">
+                            <div className="space-y-1 min-w-0">
+                              <div className="text-[10px] font-bold uppercase text-slate-400">
+                                Datos del Arrendatario
+                              </div>
+                              <div className="font-bold text-slate-900 break-words">{booking.tenantName}</div>
+                              <div className="text-slate-600">RUT: <strong>{formatRut(booking.tenantRut)}</strong></div>
+                            </div>
+                            <div className="space-y-1 min-w-0">
+                              <div className="text-[10px] font-bold uppercase text-slate-400">
+                                Contacto Directo
+                              </div>
+                              <div className="text-slate-700 font-medium break-all">
+                                📧 {booking.tenantEmail || 'contacto@spotly.cl'}
+                              </div>
+                              <div className="text-slate-700 font-semibold">
+                                📱 {tPhone}
+                              </div>
+                            </div>
+                          </div>
+
+                          {booking.intendedUse && (
+                            <div className="text-xs text-slate-700 bg-white/80 px-3 py-2 rounded-xl border border-slate-200 break-words">
+                              <strong className="text-slate-900">¿Para qué va a utilizar este lugar?:</strong> "{booking.intendedUse}"
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 pt-1">
+                            {isPending && !dayScheduleData.isPastDate && onApproveReservation && (
+                              <button
+                                type="button"
+                                onClick={() => onApproveReservation(booking.id)}
+                                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>Aprobar Solicitud</span>
+                              </button>
+                            )}
+                            {onContactTenant && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onContactTenant({
+                                    name: booking.tenantName,
+                                    email: booking.tenantEmail || 'contacto@spotly.cl',
+                                    phone: tPhone,
+                                    spaceTitle: space.title,
+                                  })
+                                }
+                                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                                <span>Contactar ({tPhone})</span>
+                              </button>
+                            )}
+                            {onViewContract && (
+                              <button
+                                type="button"
+                                onClick={() => onViewContract(booking)}
+                                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5 shrink-0" />
+                                <span>Ver Contrato Digital</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -980,9 +1113,19 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                         </span>
 
                         {isOccupied ? (
-                          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black uppercase flex items-center gap-1 shrink-0 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                            occInfo?.status === 'pending'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-rose-100 text-rose-700'
+                          }`}>
                             <Lock className="w-2.5 h-2.5 shrink-0" />
-                            <span>{dayScheduleData.isPastDate ? 'Ocupado' : 'Pedida'}</span>
+                            <span>
+                              {occInfo?.status === 'pending'
+                                ? 'Solicitud'
+                                : dayScheduleData.isPastDate
+                                ? 'Ocupado'
+                                : 'Reservada'}
+                            </span>
                           </span>
                         ) : isSelected ? (
                           <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black uppercase flex items-center gap-1 shrink-0 whitespace-nowrap">
@@ -1000,14 +1143,20 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                         {isOccupied ? (
                           <div className="space-y-1">
                             {isOwnerView && occInfo ? (
-                              <div className="p-2 rounded-xl bg-white/80 border border-rose-200 space-y-1 text-slate-800 text-[10px]">
+                              <div className="p-2.5 rounded-xl bg-white/95 border border-rose-200 space-y-1 text-slate-800 text-[10px]">
                                 <div className="font-extrabold text-slate-900 flex items-center gap-1">
                                   <UserCheck className="w-3 h-3 text-rose-600 shrink-0" />
                                   <span className="truncate">{occInfo.tenantName || 'Arrendatario'}</span>
                                 </div>
                                 {occInfo.tenantRut && (
-                                  <div className="text-slate-500">RUT: {formatRut(occInfo.tenantRut)}</div>
+                                  <div className="text-slate-600 font-medium">RUT: {formatRut(occInfo.tenantRut)}</div>
                                 )}
+                                <div className="text-slate-600 truncate">
+                                  📧 {occInfo.tenantEmail || 'contacto@spotly.cl'}
+                                </div>
+                                <div className="text-slate-700 font-semibold">
+                                  📱 {occInfo.tenantPhone || '+56 9 9123 4567'}
+                                </div>
                                 {occInfo.title && (
                                   <div className="text-slate-600 line-clamp-1 italic">
                                     "{occInfo.title}"
@@ -1020,6 +1169,19 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                                 )}
 
                                 <div className="pt-1 flex items-center gap-1 flex-wrap">
+                                  {occInfo.status === 'pending' && !dayScheduleData.isPastDate && occInfo.reservation && onApproveReservation && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onApproveReservation(occInfo.reservation!.id);
+                                      }}
+                                      className="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <CheckCircle2 className="w-2.5 h-2.5" />
+                                      <span>Aprobar</span>
+                                    </button>
+                                  )}
                                   {occInfo.reservation && onViewContract && (
                                     <button
                                       type="button"
@@ -1041,7 +1203,7 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                                         onContactTenant({
                                           name: occInfo.tenantName || 'Arrendatario',
                                           email: occInfo.tenantEmail || 'contacto@spotly.cl',
-                                          phone: '+56 9 8765 4321',
+                                          phone: occInfo.tenantPhone || '+56 9 9123 4567',
                                           spaceTitle: space.title,
                                         });
                                       }}
@@ -1449,21 +1611,48 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
 
               {/* Si es propietario y está ocupado, muestra la ficha del cliente */}
               {isOwnerView && dayDetailsForSelectedDate.primaryReservation && (
-                <div className="p-4 rounded-2xl bg-white border border-rose-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <UserCheck className="w-4 h-4 text-rose-600" />
-                      <span>Arrendatario: {dayDetailsForSelectedDate.primaryReservation.tenantName}</span>
-                    </span>
+                <div className="p-4 rounded-2xl bg-white border border-rose-200 space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <UserCheck className="w-4 h-4 text-rose-600" />
+                        <span>Arrendatario: {dayDetailsForSelectedDate.primaryReservation.tenantName}</span>
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          dayDetailsForSelectedDate.primaryReservation.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}
+                      >
+                        {dayDetailsForSelectedDate.primaryReservation.status === 'pending'
+                          ? '⚡ Solicitud por Aprobar'
+                          : '✓ Reserva Confirmada'}
+                      </span>
+                    </div>
                     <span className="text-xs font-bold text-emerald-700">
                       {formatClp(dayDetailsForSelectedDate.primaryReservation.subtotalClp)}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-600 grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                  <div className="text-xs text-slate-600 grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
                     <div>RUT: <strong>{formatRut(dayDetailsForSelectedDate.primaryReservation.tenantRut)}</strong></div>
+                    <div>Email: <strong>{dayDetailsForSelectedDate.primaryReservation.tenantEmail || 'contacto@spotly.cl'}</strong></div>
+                    <div>Teléfono: <strong>{getTenantPhone(dayDetailsForSelectedDate.primaryReservation)}</strong></div>
                     <div>Uso: <em>"{dayDetailsForSelectedDate.primaryReservation.intendedUse || 'Arriendo diario'}"</em></div>
                   </div>
-                  <div className="pt-2 flex items-center gap-2">
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    {dayDetailsForSelectedDate.primaryReservation.status === 'pending' &&
+                      !dayDetailsForSelectedDate.isPastDate &&
+                      onApproveReservation && (
+                        <button
+                          type="button"
+                          onClick={() => onApproveReservation(dayDetailsForSelectedDate.primaryReservation!.id)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Aprobar Solicitud</span>
+                        </button>
+                      )}
                     {onViewContract && (
                       <button
                         type="button"
@@ -1481,14 +1670,14 @@ export const SpaceAvailabilityViewer: React.FC<SpaceAvailabilityViewerProps> = (
                           onContactTenant({
                             name: dayDetailsForSelectedDate.primaryReservation!.tenantName,
                             email: dayDetailsForSelectedDate.primaryReservation!.tenantEmail || 'contacto@spotly.cl',
-                            phone: '+56 9 8765 4321',
+                            phone: getTenantPhone(dayDetailsForSelectedDate.primaryReservation!),
                             spaceTitle: space.title,
                           })
                         }
                         className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Contactar</span>
+                        <span>Contactar ({getTenantPhone(dayDetailsForSelectedDate.primaryReservation!)})</span>
                       </button>
                     )}
                   </div>

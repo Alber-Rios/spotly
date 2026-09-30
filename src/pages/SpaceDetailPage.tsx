@@ -215,18 +215,20 @@ export const SpaceDetailPage: React.FC<SpaceDetailPageProps> = ({
             <span className="text-xs">{copiedLink ? '¡Enlace copiado!' : 'Compartir'}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => toggleFavoriteSpace(space.id)}
-            className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-              isLiked
-                ? 'bg-rose-50 border-rose-200 text-rose-600'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-slate-500'}`} />
-            <span className="text-xs">{isLiked ? 'Guardado en Favoritos' : 'Guardar'}</span>
-          </button>
+          {currentUser && (
+            <button
+              type="button"
+              onClick={() => toggleFavoriteSpace(space.id)}
+              className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+                isLiked
+                  ? 'bg-rose-50 border-rose-200 text-rose-600'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-slate-500'}`} />
+              <span className="text-xs">{isLiked ? 'Guardado en Favoritos' : 'Guardar'}</span>
+            </button>
+          )}
         </div>
       </div>
 

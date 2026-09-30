@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+@layer base {
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Utilidad para barras de pestañas desplazables en móvil sin barra visual intrusiva */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

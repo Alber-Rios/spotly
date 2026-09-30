@@ -98,7 +98,11 @@ interface AppContextType {
   adminRejectKyc: (userId: string, reason: string) => void;
   adminToggleSpaceStatus: (spaceId: string, status: 'active' | 'paused' | 'pending_approval') => void;
   adminResolveDispute: (disputeId: string, resolution: 'resolved_refund' | 'resolved_owner', notes: string) => void;
-  createDispute: (reservationId: string, reason: string) => void;
+  createDispute: (
+    reservationId: string,
+    reason: string,
+    options?: { spaceId?: string; problemCategory?: string }
+  ) => Dispute | undefined;
   // Audit & Notifications
   addAuditRecord: (action: string, severity: 'info' | 'warning' | 'security' | 'critical', details: Record<string, unknown>) => void;
   dismissNotification: (id: string) => void;
@@ -200,7 +204,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reservations, setReservations] = useState<Reservation[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_RESERVATIONS);
-      return stored ? JSON.parse(stored) : INITIAL_RESERVATIONS;
+      const parsed: Reservation[] = stored ? JSON.parse(stored) : INITIAL_RESERVATIONS;
+      return parsed.map((r) => {
+        if (r.id === 'res-sep-001' && r.status === 'pending' && r.startDate === '2026-09-23') {
+          return { ...r, startDate: '2026-09-30', endDate: '2026-09-30' };
+        }
+        if (r.id === 'res-sep-002' && r.status === 'pending' && r.startDate === '2026-09-25') {
+          return { ...r, startDate: '2026-10-01', endDate: '2026-10-01' };
+        }
+        return r;
+      });
     } catch {
       return INITIAL_RESERVATIONS;
     }
@@ -1022,11 +1035,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Acciones exclusivas del Administrador
   const adminApproveKyc = (userId: string) => {
     setAllUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, verificationStatus: 'verified' } : u))
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              verificationStatus: 'verified',
+              kycRejectionReason: undefined,
+              kycData: u.kycData
+                ? { ...u.kycData, rejectionReason: undefined, rejectedAt: undefined }
+                : undefined,
+            }
+          : u
+      )
     );
     if (currentUser && currentUser.id === userId) {
-      setCurrentUser((prev) => (prev ? { ...prev, verificationStatus: 'verified' } : null));
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              verificationStatus: 'verified',
+              kycRejectionReason: undefined,
+              kycData: prev.kycData
+                ? { ...prev.kycData, rejectionReason: undefined, rejectedAt: undefined }
+                : undefined,
+            }
+          : null
+      );
     }
+    setNotifications((prev) => [
+      {
+        id: `notif-kyc-ok-${Date.now()}`,
+        userId,
+        title: '✅ Solicitud de Verificación Aprobada',
+        message:
+          'El Administrador ha aprobado tu verificación de identidad (cédula, biometría y certificado de antecedentes). Tu cuenta ya se encuentra habilitada para reservar.',
+        type: 'success',
+        timestamp: new Date().toISOString(),
+        read: false,
+      },
+      ...prev,
+    ]);
     addAuditRecord('ADMIN_KYC_APPROVED', 'security', {
       targetUserId: userId,
       adminId: currentUser ? currentUser.id : 'admin',
@@ -1034,13 +1082,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const adminRejectKyc = (userId: string, reason: string) => {
+    const cleanReason =
+      reason.trim() ||
+      'La documentación enviada presenta observaciones o no es legible. Por favor vuelve a subir tus documentos.';
+    const rejectedAtIso = new Date().toISOString();
+
     setAllUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, verificationStatus: 'rejected' } : u))
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              verificationStatus: 'rejected',
+              kycRejectionReason: cleanReason,
+              kycData: {
+                ...(u.kycData || {
+                  consentGiven: true,
+                  termsVersion: 'VERIFICACION-2026.1',
+                  photoCaptured: false,
+                  idFrontCaptured: false,
+                  idBackCaptured: false,
+                  rutNumber: u.rut,
+                  documentSerialNumber: '',
+                  criminalRecordSubmitted: false,
+                }),
+                rejectionReason: cleanReason,
+                rejectedAt: rejectedAtIso,
+              },
+            }
+          : u
+      )
     );
+
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              verificationStatus: 'rejected',
+              kycRejectionReason: cleanReason,
+              kycData: {
+                ...(prev.kycData || {
+                  consentGiven: true,
+                  termsVersion: 'VERIFICACION-2026.1',
+                  photoCaptured: false,
+                  idFrontCaptured: false,
+                  idBackCaptured: false,
+                  rutNumber: prev.rut,
+                  documentSerialNumber: '',
+                  criminalRecordSubmitted: false,
+                }),
+                rejectionReason: cleanReason,
+                rejectedAt: rejectedAtIso,
+              },
+            }
+          : null
+      );
+    }
+
+    setNotifications((prev) => [
+      {
+        id: `notif-kyc-rej-${Date.now()}`,
+        userId,
+        title: '⚠️ Solicitud de Verificación Rechazada',
+        message: `Estado de tu solicitud: Rechazada por el Administrador. Motivo informado: "${cleanReason}". Puedes revisar el detalle y volver a enviar tus documentos en Verificación de Identidad.`,
+        type: 'warning',
+        timestamp: rejectedAtIso,
+        read: false,
+      },
+      ...prev,
+    ]);
+
     addAuditRecord('ADMIN_KYC_REJECTED', 'security', {
       targetUserId: userId,
       adminId: currentUser ? currentUser.id : 'admin',
-      reason,
+      reason: cleanReason,
     });
   };
 
@@ -1056,6 +1171,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const adminResolveDispute = (disputeId: string, resolution: 'resolved_refund' | 'resolved_owner', notes: string) => {
+    const targetDispute = disputes.find((d) => d.id === disputeId);
     setDisputes((prev) =>
       prev.map((d) =>
         d.id === disputeId
@@ -1068,6 +1184,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : d
       )
     );
+    if (targetDispute?.reservationId) {
+      setReservations((prev) =>
+        prev.map((r) =>
+          r.id === targetDispute.reservationId
+            ? {
+                ...r,
+                disputeStatus: 'resolved',
+                status: resolution === 'resolved_refund' ? 'cancelled' : r.status,
+              }
+            : r
+        )
+      );
+    }
+    if (targetDispute?.tenantId) {
+      setNotifications((prev) => [
+        {
+          id: `notif-disp-res-${Date.now()}`,
+          userId: targetDispute.tenantId!,
+          title: '⚖️ Disputa Resuelta por Administración',
+          message: `Tu reclamo sobre "${targetDispute.spaceTitle}" fue resuelto (${
+            resolution === 'resolved_refund'
+              ? 'Reembolso del 100% autorizado: Arriendo + Garantía + 5% Comisión'
+              : 'Caso cerrado con liberación de fondos al propietario'
+          }). Dictamen: ${notes}`,
+          type: resolution === 'resolved_refund' ? 'success' : 'info',
+          timestamp: new Date().toISOString(),
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
     addAuditRecord('ADMIN_DISPUTE_RESOLVED', 'security', {
       disputeId,
       resolution,
@@ -1075,34 +1222,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const createDispute = (reservationId: string, reason: string) => {
+  const createDispute = (
+    reservationId: string,
+    reason: string,
+    options?: { spaceId?: string; problemCategory?: string }
+  ): Dispute | undefined => {
     const res = reservations.find((r) => r.id === reservationId);
-    if (!res) return;
+    const spc =
+      spaces.find((s) => s.id === (options?.spaceId || res?.spaceId || reservationId)) ||
+      spaces[0];
+
+    if (!res && !spc) return undefined;
+
+    const formattedReason = options?.problemCategory
+      ? `[${options.problemCategory}] ${reason.trim()}`
+      : reason.trim();
+
+    const fallbackSubtotal = spc.pricePerDay || 120000;
+    const fallbackDeposit = spc.securityDeposit || 60000;
+    const fallbackFee = Math.round(fallbackSubtotal * 0.05);
+
+    const subtotalClp = res ? res.subtotalClp : fallbackSubtotal;
+    const securityDepositClp = res ? res.securityDepositClp : fallbackDeposit;
+    const platformFeeClp = res ? res.platformFeeClp : fallbackFee;
+    const totalCustodyClp = res ? res.totalClp : subtotalClp + securityDepositClp + platformFeeClp;
 
     const newDispute: Dispute = {
       id: `disp-${Date.now()}`,
-      reservationId,
-      spaceTitle: res.spaceTitle,
-      tenantName: res.tenantName,
-      tenantRut: res.tenantRut,
-      ownerName: res.ownerName,
-      ownerRut: res.ownerRut || '14.258.963-7',
-      amountClp: res.totalClp,
-      reason,
+      reservationId: res ? res.id : `soporte-${Date.now().toString().slice(-5)}`,
+      spaceId: res ? res.spaceId : spc?.id,
+      spaceTitle: res ? res.spaceTitle : spc.title,
+      tenantId: currentUser?.id || res?.tenantId || 'guest',
+      tenantName: res ? res.tenantName : currentUser?.fullName || 'Usuario Spotly',
+      tenantRut: res ? res.tenantRut : currentUser?.rut || '18.421.905-3',
+      ownerName: res ? res.ownerName : spc.ownerName,
+      ownerRut: (res ? res.ownerRut : spc.ownerRut) || '14.258.963-7',
+      subtotalClp,
+      securityDepositClp,
+      platformFeeClp,
+      amountClp: totalCustodyClp,
+      problemCategory: options?.problemCategory,
+      reason: formattedReason,
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
     setDisputes((prev) => [newDispute, ...prev]);
-    setReservations((prev) =>
-      prev.map((r) => (r.id === reservationId ? { ...r, disputeStatus: 'opened', disputeReason: reason } : r))
-    );
+    if (res) {
+      setReservations((prev) =>
+        prev.map((r) =>
+          r.id === res.id ? { ...r, disputeStatus: 'opened', disputeReason: formattedReason } : r
+        )
+      );
+    }
+
+    if (currentUser) {
+      setNotifications((prev) => [
+        {
+          id: `notif-disp-${Date.now()}`,
+          userId: currentUser.id,
+          title: '🛡️ Reporte de Problema / Disputa Registrada',
+          message: `Se ha registrado tu reclamo sobre "${newDispute.spaceTitle}" (Código #${newDispute.id}). El equipo de Soporte y Administración revisará el caso.`,
+          type: 'info',
+          timestamp: new Date().toISOString(),
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
 
     addAuditRecord('DISPUTE_OPENED', 'warning', {
-      reservationId,
-      tenantRut: res.tenantRut,
-      reason,
+      disputeId: newDispute.id,
+      reservationId: newDispute.reservationId,
+      spaceTitle: newDispute.spaceTitle,
+      tenantRut: newDispute.tenantRut,
+      reason: formattedReason,
     });
+
+    return newDispute;
   };
 
   const dismissNotification = (id: string) => {
@@ -1186,26 +1383,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [favoritesByUser]);
 
-  const activeUserKey = currentUser ? currentUser.id : 'guest';
-
   const favoriteSpaceIds = useMemo(() => {
-    return favoritesByUser[activeUserKey] || [];
-  }, [favoritesByUser, activeUserKey]);
+    if (!currentUser) return [];
+    return favoritesByUser[currentUser.id] || [];
+  }, [favoritesByUser, currentUser]);
 
   const isSpaceFavorite = (spaceId: string): boolean => {
+    if (!currentUser) return false;
     return favoriteSpaceIds.includes(spaceId);
   };
 
   const toggleFavoriteSpace = (spaceId: string) => {
+    if (!currentUser) return;
+    const userKey = currentUser.id;
     setFavoritesByUser((prev) => {
-      const currentList = prev[activeUserKey] || [];
+      const currentList = prev[userKey] || [];
       const exists = currentList.includes(spaceId);
       const nextList = exists
         ? currentList.filter((id) => id !== spaceId)
         : [spaceId, ...currentList];
       return {
         ...prev,
-        [activeUserKey]: nextList,
+        [userKey]: nextList,
       };
     });
 
@@ -1219,11 +1418,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearFavorites = () => {
+    if (!currentUser) return;
+    const userKey = currentUser.id;
     setFavoritesByUser((prev) => ({
       ...prev,
-      [activeUserKey]: [],
+      [userKey]: [],
     }));
-    addAuditRecord('FAVORITES_CLEARED', 'info', { userId: activeUserKey });
+    addAuditRecord('FAVORITES_CLEARED', 'info', { userId: userKey });
   };
 
   return (

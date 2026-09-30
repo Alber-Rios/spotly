@@ -94,7 +94,12 @@ export function getSpaceAvailableModalities(space: Pick<Space, 'rentalModality' 
 
 export function formatDateCl(dateStr: string): string {
   try {
-    const d = new Date(dateStr);
+    if (!dateStr) return '';
+    const trimmed = dateStr.trim();
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+      ? `${trimmed}T12:00:00`
+      : trimmed;
+    const d = new Date(normalized);
     return d.toLocaleDateString('es-CL', {
       day: '2-digit',
       month: 'short',
